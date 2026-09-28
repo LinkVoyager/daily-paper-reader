@@ -25,3 +25,55 @@ subscriptions:
     stage: A
     diff_threshold_pct: 15
   keyword_recall_mode: or
+  intent_profiles:
+    - tag: driving-vla
+      description: 查找自动驾驶或者VLA（视觉-语言-动作）相关论文
+      enabled: true
+      paper_sources:
+        - arxiv
+      keywords:
+        - keyword: autonomous driving
+          keyword_cn: 自动驾驶
+          query: research papers on autonomous driving systems and algorithms
+        - keyword: vision language action
+          keyword_cn: 视觉-语言-动作
+          query: papers on vision-language-action models for embodied decision making
+        - keyword: end-to-end autonomous driving
+          keyword_cn: 端到端自动驾驶
+          query: end-to-end learning methods for autonomous driving from perception to control
+        - keyword: trajectory planning
+          keyword_cn: 轨迹规划
+          query: trajectory planning and motion prediction for autonomous vehicles
+        - keyword: embodied artificial intelligence
+          keyword_cn: 具身智能
+          query: embodied artificial intelligence for perception-action loops in agents
+        - keyword: driving world model
+          keyword_cn: 驾驶世界模型
+          query: world models for simulating and reasoning about driving scenes
+      intent_queries:
+        - query: papers on vision language action models for autonomous driving
+          query_cn: 关于自动驾驶视觉语言动作模型的论文
+          enabled: true
+          source: manual
+          note: ''
+        - query: Vision language action architectures for robotic and vehicle control with trajectory planning
+          query_cn: 用于机器人及车辆控制并包含轨迹规划的视觉 语言 动作架构
+          enabled: true
+          source: manual
+          note: ''
+      updated_at: '2026-09-28T05:08:58.996Z'
+source_backends:
+  arxiv:
+    papers_table: arxiv_papers
+    use_vector_rpc: true
+    vector_rpc: match_arxiv_papers
+    vector_rpc_exact: match_arxiv_papers_exact
+    use_bm25_rpc: true
+    bm25_rpc: match_arxiv_papers_bm25
+    sync_table: arxiv_sync_status
+    sync_success_value: success
+    schema: public
+    kind: supabase
+    enabled: true
+    url: https://lyucdwgefyfbmaiopjbk.supabase.co
+    anon_key: sb_publishable_lX-oi64Uxyd7SIVv3_w2Uw_MTOojeKq
