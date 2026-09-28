@@ -1,0 +1,313 @@
+{
+  "date": "20260830-20260928",
+  "date_label": "2026-08-30 ~ 2026-09-28",
+  "generated_at": "2026-09-28 05:15:54 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2608.30144v1",
+      "route": "20260830-20260928/2608.30144v1-rethinking-languages-role-in-efficient-vla-for-autonomous-vehicles-toward-smarter-trustworthy-driving",
+      "title": "Rethinking Language's Role in Efficient VLA for Autonomous Vehicles: Toward Smarter, Trustworthy Driving",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 10.0,
+      "evidence": "面向自动驾驶的高效VLA与推理期语言使用",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.03602v1",
+      "route": "20260830-20260928/2609.03602v1-sv-wam-an-efficient-surround-view-world-action-model-for-end-to-end-autonomous-driving",
+      "title": "SV-WAM: An Efficient Surround-View World-Action Model for End-to-End Autonomous Driving",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 10.0,
+      "evidence": "面向端到端自动驾驶的环视世界-动作模型",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.15169v1",
+      "route": "20260830-20260928/2609.15169v1-grava-grounded-reasoning-to-action-representation-and-learning-for-autonomous-driving",
+      "title": "GRAVA: Grounded Reasoning-to-Action Representation and Learning for Autonomous Driving",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 10.0,
+      "evidence": "面向驾驶VLA的具身推理到动作框架",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.15322v1",
+      "route": "20260830-20260928/2609.15322v1-planning-in-the-backbone-diffadaptervla-for-native-continuous-trajectory-generation-with-driving-vlms",
+      "title": "Planning in the Backbone: DiffAdapterVLA for Native Continuous Trajectory Generation with Driving VLMs",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 10.0,
+      "evidence": "在主干网络中实现驾驶VLM的原生连续轨迹生成",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.22040v1",
+      "route": "20260830-20260928/2609.22040v1-prime-perception-feedback-with-situational-memory-embeddings-in-vla-models",
+      "title": "PRIME: Perception Feedback with Situational Memory Embeddings in VLA Models",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 10.0,
+      "evidence": "驾驶VLA模型中的感知反馈与情境记忆",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.27747v1",
+      "route": "20260830-20260928/2609.27747v1-less-language-more-latents-annotation-efficient-vlas-for-driving",
+      "title": "Less Language, More Latents: Annotation-Efficient VLAs for Driving",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 10.0,
+      "evidence": "面向驾驶的标注高效VLA",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.00111v1",
+      "route": "20260830-20260928/2609.00111v1-qwen-drive-10-an-initial-step-towards-a-vision-language-foundation-model-for-autonomous-driving",
+      "title": "Qwen-Drive-1.0: An Initial Step towards a Vision-Language Foundation Model for Autonomous Driving",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "融合感知与运动规划的自动驾驶视觉语言基础模型",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.02341v1",
+      "route": "20260830-20260928/2609.02341v1-towards-zero-shot-transfer-across-embodiments-for-driving-vlas",
+      "title": "Towards Zero-Shot Transfer Across Embodiments For Driving VLAs",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向驾驶VLA的跨具身零样本迁移",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.04070v1",
+      "route": "20260830-20260928/2609.04070v1-continuous-actions-from-discrete-minds-latent-aligned-planning-for-end-to-end-autonomous-driving",
+      "title": "Continuous Actions from Discrete Minds: Latent-Aligned Planning for End-to-End Autonomous Driving",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向端到端自动驾驶的潜在对齐规划VLA框架",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.17021v1",
+      "route": "20260830-20260928/2609.17021v1-sensvla-spatially-grounded-vision-language-action-model-for-autonomous-wheel-loader",
+      "title": "sensVLA: Spatially-Grounded Vision-Language-Action Model for Autonomous Wheel Loader",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向车辆控制的VLA架构与轨迹规划",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.17728v1",
+      "route": "20260830-20260928/2609.17728v1-raf-vla-representation-alignment-with-the-future-for-end-to-end-autonomous-driving",
+      "title": "RAF-VLA: Representation Alignment with the Future for End-to-End Autonomous Driving",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "基于VLA的端到端自动驾驶与未来表征对齐",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.18623v1",
+      "route": "20260830-20260928/2609.18623v1-five-vla-fast-and-effective-autonomous-driving-with-recurrent-action-memory",
+      "title": "FIVE-VLA: Fast and EffectIVE Autonomous Driving with Recurrent Action Memory",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "带循环动作记忆与轨迹预测的高效自动驾驶VLA",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.21712v2",
+      "route": "20260830-20260928/2609.21712v2-zyt-world-a-real-time-controllable-world-model-for-closed-loop-autonomous-driving-simulation",
+      "title": "ZYT-World: A Real-Time Controllable World Model for Closed-Loop Autonomous-Driving Simulation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向闭环自动驾驶仿真的实时可控世界模型",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.28366v1",
+      "route": "20260830-20260928/2609.28366v1-anchorreasoning-a-visual-grounding-and-causal-reasoning-dataset-in-long-tail-autonomous-driving-scenarios",
+      "title": "AnchorReasoning: A Visual Grounding and Causal Reasoning Dataset in Long-Tail Autonomous Driving Scenarios",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "自动驾驶推理与轨迹规划数据集",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2608.29583v1",
+      "route": "20260830-20260928/2608.29583v1-drive-the-thoughts-runtime-monitoring-of-vla-reasoning-trajectory-consistency",
+      "title": "Drive the Thoughts: Runtime Monitoring of VLA Reasoning-Trajectory Consistency",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "对自动驾驶VLA推理链与轨迹一致性的运行时监控",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.01659v1",
+      "route": "20260830-20260928/2609.01659v1-beyond-textual-chain-of-thought-a-survey-on-action-grounded-reasoning-in-autonomous-driving",
+      "title": "Beyond Textual Chain-of-Thought: A Survey on Action-Grounded Reasoning in Autonomous Driving",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "自动驾驶中动作接地推理的综述",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.06114v1",
+      "route": "20260830-20260928/2609.06114v1-where-success-breaks-failure-boundary-learning-for-robust-vision-language-action-models",
+      "title": "Where Success Breaks: Failure-Boundary Learning for Robust Vision-Language-Action Models",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "面向鲁棒VLA模型适配的失败边界学习",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.22895v1",
+      "route": "20260830-20260928/2609.22895v1-h-vla-hierarchical-vision-language-action-model-with-key-action-reasoning-and-motion-planning-in-a-unified-action-space",
+      "title": "H-VLA: Hierarchical Vision-Language-Action Model with Key-Action Reasoning and Motion Planning in a Unified Action Space",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "分层VLA解耦关键动作推理与运动生成",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    },
+    {
+      "paper_id": "2609.23565v1",
+      "route": "20260830-20260928/2609.23565v1-maskvla-visual-masking-against-trajectory-overfitting-of-vision-language-action-model",
+      "title": "MaskVLA: Visual Masking Against Trajectory Overfitting of Vision-Language-Action Model",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "面向机器人控制的视觉-语言-动作模型微调",
+      "first_seen_at": "2026-09-28 05:15:54 UTC",
+      "updated_at": "2026-09-28 05:15:54 UTC"
+    }
+  ]
+}

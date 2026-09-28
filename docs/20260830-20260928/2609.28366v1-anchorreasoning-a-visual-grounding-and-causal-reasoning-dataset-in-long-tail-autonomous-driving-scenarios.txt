@@ -1,0 +1,1514 @@
+ANCHORREASONING:
+A VISUAL GROUNDING AND
+CAUSAL REASONING DATASET IN LONG-TAIL AU-
+TONOMOUS DRIVING SCENARIOS
+Zhipeng Bao1, Wenjie Zhao1, Tianle Zhu1, Haohua Que1,
+Chence Yang2, Geng Yuan2, Qianwen Li1∗
+1School of Environmental, Civil, Agricultural and Mechanical Engineering, University of Georgia
+2School of Computing, University of Georgia
+ABSTRACT
+Vision-language models (VLMs) offer a promising approach to long-tail au-
+tonomous driving, but existing driving datasets provide limited supervision for
+connecting decision-critical visual evidence with reasoning and planning. We in-
+troduce AnchorReasoning, a visually grounded reasoning dataset built on WOD-
+E2E, containing 416,119 annotated frames and 395,379 decision-critical elements
+across four major categories and 19 fine-grained types. Each frame is organized
+as a visually grounded chain-of-thought (VG-CoT) that links decision-critical ele-
+ment identification and localization, element attributes and implications, driving-
+action rationale, and action and trajectory planning. We further develop a curricu-
+lum supervised fine-tuning strategy that progressively learns these hierarchical
+capabilities, together with an object-size-aware grounding metric for evaluating
+localization quality. Experiments across eight general-purpose, embodied-AI, and
+AV-specific backbones show that VG-CoT supervision improves grounded reason-
+ing and trajectory prediction. Across models, 5-s ADE and FDE decrease by 7.84
+and 11.86, while RFS Frame and Cluster improve by 1.66 and 1.70. These gains
+are achieved with 18.5 fewer reasoning tokens and 0.32 s/frame lower inference la-
+tency on average, demonstrating the value of visually grounded, decision-focused
+supervision for VLM reasoning and planning in long-tail autonomous driving.
+1
+INTRODUCTION
+Recent autonomous driving research has increasingly focused on addressing long-tail scenarios.
+These rare and complex situations often require a deeper understanding of the driving context
+and deliberate reasoning to derive appropriate behavioral plans. Vision-language models (VLMs),
+with their strong multimodal understanding and commonsense reasoning capabilities, have therefore
+emerged as a promising paradigm for handling such challenging scenarios (Wang et al., 2025; Zhou
+et al., 2026). However, effectively harnessing these capabilities for long-tail driving largely depends
+on how the training data are organized.
+Early VLM-oriented driving datasets were primarily organized around scene descriptions or caption-
+ing annotations (Kim et al., 2018; Liu et al., 2023). Such annotations provide holistic supervision
+of the driving environment, enabling models to learn high-level scene semantics and contextual in-
+formation. However, coarse scene-level descriptions provide limited supervision for fine-grained,
+object-centric understanding. More importantly, they provide little explicit guidance on how scene
+observations should be translated into driving decisions.
+To provide more targeted supervision, recent datasets have increasingly adopted question-answering
+(QA) and chain-of-thought (CoT) annotations (Wu et al., 2025; Marcu et al., 2024; Qian et al.,
+2024). QA-based datasets decompose driving scenes into object-level questions, allowing models
+to learn individual visual concepts. Such supervision enables more fine-grained probing and learn-
+ing of driving implications of individual elements. However, QA-based supervision primarily trains
+∗Corresponding author.
+1
+arXiv:2609.28366v1  [cs.CV]  23 Sep 2026
+
+
+VLMs to answer isolated questions, providing limited guidance on how multiple pieces of evidence
+are connected into a coherent and structured reasoning process (Nie et al., 2024). CoT-based an-
+notations mitigate this limitation by modeling the intermediate reasoning steps, enabling VLMs to
+learn a coherent driving reasoning chain that connects scene observation, contextual interpretation,
+and decision-making (Ishaq et al., 2025; Arai et al., 2025). Despite these advances, most existing
+CoT supervision does not prioritize decision-critical evidence. Consequently, VLMs may incorpo-
+rate decision-irrelevant elements into their reasoning, resulting in verbose or distracted outputs that
+compromise both quality and efficiency (Qian et al., 2025). In addition, current CoT annotations
+are predominantly textual and rarely ground critical elements to their corresponding visual regions.
+This missing connection may cause VLMs to rely on language priors rather than the actual scene,
+producing interpretations that are weakly supported by visual observations and increasing the risk of
+hallucination (Xie et al., 2025; Chang et al., 2026). Moreover, most existing datasets are dominated
+by routine driving scenarios and provide limited coverage of long-tail situations.
+To address these limitations, we introduce AnchorReasoning, a visual grounding and causal rea-
+soning dataset for VLMs in long-tail driving scenarios (Table 1). Built upon WOD-E2E (Xu et al.,
+2026), AnchorReasoning augments real-world long-tail driving clips with decision-critical visual
+grounding annotations and driving reasoning chains tailored for VLM training. For each frame,
+the annotations are organized as a visually grounded chain-of-thought (VG-CoT): observation and
+grounding, element implication, driving action rationale, and driving action and trajectory plan-
+ning. First, it guides VLMs to identify and localize decision-critical elements, such as roadway
+users and traffic control devices. It then enables VLMs to interpret element attributes and infer
+their implications for ego driving. VLMs then consolidate multiple implications to derive the ac-
+tion plan and future trajectory, while providing a rationale. In addition, we develop a curriculum
+supervised fine-tuning (SFT) strategy to fully leverage the proposed dataset. The curriculum pro-
+gressively equips VLMs with visually grounded causal reasoning and planning capabilities through
+the VG-CoT supervision. We further design a point-based visual-grounding metric to evaluate the
+localization accuracy of predicted decision-critical elements. Experimental results across different
+backbones demonstrate that VG-CoT supervision equips models with visual grounding capability,
+enabling them to incorporate visual evidence into higher-quality reasoning and more accurate tra-
+jectory prediction. It improves the Rater Feedback Score (RFS) Frame and Cluster by 1.66 and 1.70.
+These gains are achieved with 18.5 fewer reasoning tokens on average and a 0.32 s/frame reduction
+in inference latency. The main contributions of this paper are summarized as follows:
+• We introduce AnchorReasoning, a long-tail driving dataset for VLM training that pro-
+vides decision-relevant visual grounding, fine-grained element attributes and semantics,
+and structured reasoning annotations. These annotations enable models to identify, lo-
+calize, and correctly interpret the elements that truly influence driving decisions, thereby
+improving their trajectory planning performance in long-tail autonomous driving scenarios.
+• We propose a curriculum SFT strategy that follows the structure of VG-CoT, allowing mod-
+els to fully leverage the hierarchical supervision and progressively acquire visual ground-
+ing, element implication, driving action rationale, behavior planning, and trajectory gener-
+ation capabilities.
+Table 1: Comparison of representative VLM-oriented driving datasets.
+Decision-critical Elements
+Dataset
+# Ann.
+Frames
+Long-tail
+Decision-
+critical Element
+Visual
+Grounding
+Impact
+Rank
+Implication
+Reasoning
+Action /
+Trajectory
+nuScenes-QA (Qian et al., 2024)
+34,149
+✗
+✗
+✗
+✗
+✗
+QA
+–
+LingoQA (Marcu et al., 2024)
+28K clips
+✗
+✓
+✗
+✗
+✗
+QA
+Action
+Rank2Tell (Sachdeva et al., 2024)
+3,833
+✗
+✓
+✓
+✓
+✗
+QA
+–
+DriveLM (Sima et al., 2024)
+4,871
+✗
+✓
+✗
+✓
+✓
+Graph QA
+Both
+DriveLMM-o1 (Ishaq et al., 2025)
+2,501
+✗
+✓
+✗
+✗
+✗
+CoT
+Action
+STRIDE-QA (Ishihara et al., 2026)
+270K
+✗
+✗
+✗
+✗
+✗
+Grounded QA
+–
+CoVLA (Arai et al., 2025)
+6.0M
+✗
+✗
+✗
+✗
+✗
+Description
+Both
+nuReasoning (Huang et al., 2026)
+∼3.78M est.
+✓
+✓
+△
+✗
+✓
+QA & CoT
+Both
+AnchorReasoning (Ours)
+416K
+✓
+✓
+✓
+✓
+✓
+VG-CoT
+Both
+Note. “Graph QA” organizes QA pairs as a dependency graph linking perception, prediction, and planning questions. “Grounded QA” asso-
+ciates QA pairs with corresponding visual regions or objects. △denotes partial grounding: nuReasoning grounds objects in spatial reasoning
+with 2D image locations, but does not explicitly propagate this grounding into decision reasoning or trajectory generation.
+2
+
+
+Figure 1: AnchorReasoning annotation pipeline, and example.
+• We introduce an object-size-aware visual grounding metric that evaluates predicted ground-
+ing points using scale-adaptive point-to-mask distances, providing a consistent measure of
+localization quality across elements of different sizes.
+2
+RELATED WORK
+Language Description and Explanation.
+Early language-supervised driving datasets focus on
+describing driving behavior and explaining action decisions. BDD-X provides natural-language
+descriptions of driving actions and their justifications (Kim et al., 2018), while DRAMA further
+introduces localization of risk-relevant objects together with hazard explanations (Malla et al., 2023).
+These works establish language-based supervision for driving scene understanding and behavior
+explanation.
+Question Answering.
+VQA-based datasets provide more structured supervision through targeted
+questions about driving scenes. NuScenes-QA covers object existence, attributes, states, and spatial
+relationships (Qian et al., 2024); LingoQA extends the scope to localization, anticipation, attention,
+and action justification (Marcu et al., 2024); and Rank2Tell identifies and ranks decision-relevant
+traffic participants with natural-language explanations (Sachdeva et al., 2024). DriveLM further
+introduces Graph VQA, connecting perception, prediction, and planning questions through logical
+dependencies (Sima et al., 2024). These datasets support fine-grained learning of object- and task-
+level driving knowledge.
+Chain-of-Thought Reasoning.
+Recent datasets move toward structured reasoning chains for driv-
+ing. Reason2Drive introduces reasoning across perception, prediction, and decision-making (Nie
+et al., 2024), while DriveLMM-o1 provides step-by-step rationales for perception, prediction, and
+planning (Ishaq et al., 2025). nuReasoning further extends reasoning supervision to real-world long-
+tail scenarios with spatial, decision, and counterfactual reasoning (Huang et al., 2026).
+3
+ANCHORREASONING DATASET
+3.1
+OVERVIEW
+AnchorReasoning is a visually grounded reasoning dataset designed to train and evaluate VLM in
+long-tail scenarios. Built upon WOD-E2E, it augments real-world long-tail driving clips with anno-
+tations centered on decision-critical elements. AnchorReasoning identifies and visually grounds the
+3
+
+
+Figure 2: Representative annotation examples across diverse driving scenarios. Decision-critical
+elements are highlighted with bounding boxes and category-specific labels.
+elements that influence the ego driving, and further annotates their attributes and implications. These
+annotations are organized into a VG-CoT that connects grounding, scene understanding, causal rea-
+soning, action and trajectory prediction. The dataset contains over 11 hours of driving data across
+2492 clips, comprising 416,119 annotated frames and 395,379 decision-critical elements.
+3.2
+VG-COT ANNOTATION SCHEMA
+Figure 3: Context and traffic event
+distribution.
+Not labeled: Weather:
+Rainy 4.4%, Unknown 3.4%, Fog
+1.5%;
+Visibility:
+Limited 10.6%,
+Poor 4.9%;
+Scenario:
+Suburban
+13.7%, Urban Highway 2.3%, Other
+4.5%; Road structure: Other 0.3%.
+VG-CoT is designed to guide VLMs through a hierarchical
+and evidence-grounded driving reasoning process. It en-
+courages models to reason from the observed scene instead
+of relying primarily on language priors, thereby improv-
+ing reasoning fidelity and reducing hallucinations. VG-CoT
+first provides scene-level context and event-level traffic in-
+formation. The context annotations describe global driv-
+ing conditions (Fig. 3), providing the background needed to
+interpret appropriate driving behavior under different envi-
+ronments. Traffic event annotations further capture events
+such as roadside parking and construction. These annota-
+tions provide event-level constraints that may not be fully
+represented by individual objects.
+The core of VG-CoT is the annotation of decision-critical
+elements, which directs the model toward visual evidence
+that influences the current driving decision (Fig. 2). Each
+element is annotated with both visual grounding (bound-
+ing boxes and segmentation masks), and structured se-
+mantic information. We group decision-critical elements
+into four major categories: vehicles, vulnerable road users
+(VRUs), obstacles, and traffic-control elements. For vehi-
+cles, VRUs, and obstacles, the annotated attributes include
+type, location, state, intention, and impact rank. Location
+describes both the relative direction of the element and its
+4
+
+
+road-topological position. State represents the currently ob-
+served condition, whereas intention describes the likely short-term behavior, such as turning, or
+crossing the road. Impact rank indicates the relative priority of each element in the current deci-
+sion, where a smaller rank number denotes a stronger influence on ego driving. This ranking guides
+the model to allocate attention among multiple critical elements in a human-like manner. For traffic-
+control elements, other than the impact rank, the annotations capture information such as traffic-light
+states, sign semantics, and descriptions of temporary traffic control. Each decision-critical element
+is further associated with an implication, which explains how the observed element may affect the
+ego vehicle and what action responses are appropriate. This encourages the model to reason about
+one critical factor at a time before integrating multiple factors, thereby reducing interference from
+unrelated information and facilitating the subsequent global reasoning process.
+Finally, the reasoning and planning stage consolidates multiple element-level implications to derive
+the final driving decision. The rationale weighs these cues according to their relevance and impact,
+producing longitudinal and lateral actions. Because high-level actions can serve as an intermediate
+representation between semantic reasoning and continuous trajectory, AnchorReasoning includes
+both action annotations and future trajectories, supporting models that predict either meta-actions or
+trajectories directly.
+Figure 4: Decision-critical element composition and spatial distribution.
+3.3
+HUMAN-IN-THE-LOOP ANNOTATION AND QUALITY CONTROL
+Figure 5: Predefined spatial
+regions.
+We adopt a hybrid human-in-the-loop annotation pipeline that com-
+bines human judgment, VLM-assisted annotation, promptable seg-
+mentation, and rule-based methods. At the scene level, Qwen3-VL
+generates contextual labels, while human annotators identify traf-
+fic events. For decision-critical elements, annotators with driving
+experience first identify and rank the elements they would priori-
+tize under the same driving situation. To improve consistency, they
+follow four guidelines: prioritizing traffic-control elements, nearby
+elements, moving elements, and elements likely to affect the ego
+vehicle’s future driving space. At most five decision-critical elements are retained per frame to keep
+the supervision concise. Annotators then provide point prompts for each selected element, which
+are passed to SAM3 to generate instance masks and corresponding bounding boxes.
+Figure 6: Free-text annotation length and
+action space.
+Element attributes are subsequently obtained through
+human and automatic annotation.
+Human annota-
+tors provide element states and short-term intentions,
+while Qwen3-VL generates element types, sign con-
+tent, and temporary traffic-control descriptions.
+El-
+ement location combines manually annotated road-
+topological relations with zone-based relative direc-
+tions inferred from bounding-box positions and their
+overlap with predefined regions (Fig. 5). Traffic-light
+states are determined using Hue–Saturation–Value-
+based rules within the detected traffic-light regions (Ap-
+pendix B.2).
+5
+
+
+Based on these grounded element annotations, implica-
+tions are generated using a complexity-aware strategy.
+Scenes with no more than two decision-critical elements are processed using a locally deployed
+Qwen3-VL, whereas scenes with richer interactions are handled by GPT-5.2. The same strategy is
+applied to the final reasoning and planning stage. This tiered pipeline can balance annotation quality
+and cost.
+Quality Control.
+Before large-scale annotation, each automatic annotation tool is evaluated to
+verify its reliability; the evaluation method and quantitative results are provided in Appendix B.
+After annotation is completed, we employ a multi-stage quality-control procedure. For context and
+traffic event annotations, 50% of the samples are randomly reviewed and corrected by human an-
+notators. Decision-critical element selection and impact ranking are further verified through cross-
+annotation review. Each sample is checked by a second annotator, and substantial disagreements are
+resolved by a third annotator through majority voting. For long-form annotations, including impli-
+cations, rationales, and action plans, recurrent error patterns are summarized and used to refine the
+system prompts, after which the corresponding annotations are regenerated. We additionally apply
+a rule-based consistency check between action plans and future trajectories to enforce expected ge-
+ometric and kinematic consistency (Appendix B.6). Inconsistent samples are flagged for manual
+review and correction.
+3.4
+DATASET STATISTICS
+The dataset contains approximately 395K decision-critical elements across 4 high-level categories
+and 19 fine-grained element types, providing extensive object-level supervision for identifying
+driving-relevant evidence. Their grounded locations span the three-camera images and exhibit dif-
+ferent spatial distributions across element classes, enabling models to associate heterogeneous visual
+evidence with its semantic role in driving (Fig. 4). The free-text annotations remain compact, with
+mean lengths of 34 tokens for element-level implications and 32 tokens for rationales, supporting
+concise inference from individual element effects to integrated driving decisions. Finally, the action
+space comprises 4 longitudinal and 10 lateral actions, providing semantic planning supervision that
+connects grounded reasoning with motion planning (Fig. 6).
+4
+CURRICULUM-BASED SUPERVISED FINE-TUNING
+Stage I: Perception and Grounding.
+Stage I focuses on learning visual perception and proceeds
+in two phases. In phase a, supervision is limited to scene context, traffic events, and binary decision-
+critical element presence, establishing coarse scene understanding before element-level reasoning.
+Phase b introduces element identification, visual grounding, impact ranking, and attribute under-
+standing. Throughout both phases, the complete VG-CoT target is retained, but locked fields are
+masked from the loss and contribute no gradient. This preserves a consistent output structure while
+allowing the model to progressively acquire the capabilities required for finer-grained perception.
+Stage II: Reasoning and Planning.
+Stage II is initialized from the best Stage-I checkpoint and su-
+pervises the complete VG-CoT chain, including element-level implication, driving action rationale,
+action and trajectory generation. At this stage, the visual encoder is frozen to preserve the ground-
+ing capability learned in Stage I while the model learns higher-level reasoning and planning. We
+additionally apply trajectory-only supervision to a subset of training samples, where only trajectory
+tokens contribute to the loss, to preserve a direct perception-to-action pathway. We also increase the
+sampling probability of frames containing longitudinal action transitions and rare element states to
+improve the coverage of underrepresented cases.
+Training Objective.
+For each target token t, we define a curriculum-aware weight wt
+=
+m(s)
+t Wϕ(t)ρt, where m(s)
+t
+is the stage-dependent supervision gate that determines which VG-CoT
+fields contribute to the loss at each curriculum. Wϕ(t) is the base weight of the annotation field, and
+ρt adjusts the contribution of informative or underrepresented targets. In particular, rare attribute
+values are upweighted, while trajectory waypoints that deviate more from constant-velocity motion
+receive greater emphasis.
+6
+
+
+The overall training objective combines a VG-CoT chain loss and a trajectory loss:
+L = Lchain + λLtraj,
+Lchain =
+P
+t∈C wtℓt
+P
+t∈C wt
+,
+Ltraj =
+P
+t∈J wtℓt
+P
+t∈J wt
+.
+(1)
+Here, ℓt = −log pθ(yt | y<t, x) denotes the token-level cross-entropy loss. C and J denote the su-
+pervised VG-CoT chain tokens and trajectory tokens, respectively. Lchain supervises the perception-
+to-action reasoning chain, while Ltraj optimizes future trajectory generation. The coefficient λ con-
+trols the balance between the two objectives and is set to 1 in all experiments. We normalize the
+two terms independently so that their relative weighting is not determined by differences in token
+sequence length. Stage I optimizes only Lchain, whereas Stage II jointly optimizes both objectives.
+5
+EXPERIMENTS
+5.1
+MODELS
+We evaluate eight representative models to assess the effectiveness of AnchorReasoning across di-
+verse model foundations. (i) General-purpose VLMs. Qwen2.5-VL-7B (Bai et al., 2025b) and
+Qwen3-VL-8B (Bai et al., 2025a) serve as general-purpose baselines.(ii) Embodied-AI founda-
+tion models. Cosmos-Reason2-2B and Cosmos-Reason2-8B (NVIDIA, 2025) provide embodied-
+reasoning baselines without driving-specific adaptation. (iii) AV-specific VLMs. Alpamayo-R1-
+10B and Alpamayo-1.5-10B (Wang et al., 2025) are driving-specialized models capable of joint
+reasoning and trajectory prediction. AutoVLA-3B (Zhou et al., 2026) and Impromptu-VLA-7B
+(Chi et al., 2026) are included as complementary open-source driving baselines. Detailed training
+and implementation settings are provided in Appendix C.1, C.2.
+5.2
+EVALUATION METRICS
+Standard Evaluation Metrics.
+We use standard classification, trajectory, and efficiency metrics to
+evaluate scene understanding, element attributes, trajectory prediction, and inference cost. Context
+Acc. measures the average accuracy of scene-context predictions, while Traffic Event F1 evalu-
+ates the detection of traffic events. Presence Acc. measures whether the model correctly predicts
+the presence of decision-critical elements in a frame. For matched elements, Element State Recall,
+Element Intention Recall, and Sign-Content Recall evaluate the corresponding semantic attributes,
+while R/G Conf. measures the red–green traffic-light confusion rate. For trajectory prediction, we
+report Average Displacement Error (ADE) and Final Displacement Error (FDE). We additionally re-
+port the official WOD-E2E RFS (Xu et al., 2026). Detailed definitions and implementation protocols
+are provided in Appendix C.3.
+Decision-Critical Element Grounding.
+Because the model predicts a point rather than a bound-
+ing box, we match predicted elements to ground-truth elements using a one-to-one, scale-adaptive
+point-to-mask criterion. For each ground-truth element, the point-to-mask distance is zero when
+the predicted point falls inside its segmentation mask and otherwise equals the minimum Euclidean
+distance to the mask. A prediction is considered matched when this distance falls within a scale-
+adaptive assignment threshold determined by the ground-truth element size.
+We report Element Recall Rdet = |M|/|G|, where G is the set of ground-truth decision-critical
+elements and M is the subset successfully matched to model predictions. We also report Rank-1
+Recall to evaluate whether the most influential element is retrieved, Element Type Acc. to assess
+type prediction among matched elements, and Point-in-Mask Rate to measure localization precision:
+Rin =
+1
+|M|
+X
+g∈M
+1
+
+xπ(g) ∈Mg
+
+,
+(2)
+where π(g) denotes the prediction matched to ground-truth element g, xπ(g) is its predicted image
+point, Mg is the segmentation mask of g, and 1[·] is the indicator function. Detailed matching rules
+and robustness analyses are provided in Appendix C.3.
+7
+
+
+Element Implication and Driving Action Rationale.
+We use GPT-5.5 to evaluate element-level
+implications and frame-level rationales. Element Implication measures whether the model correctly
+describes each decision-critical element and its effect on ego driving, while Driving Action Rationale
+measures whether it correctly consolidates multiple factors into the final driving decision. Details
+are provided in Appendix C.3.
+Table 2: Scene-level semantics and decision-critical element.
+Scene-Level Semantics
+Decision-Critical Elements
+Model
+Context
+Acc. ↑
+Traffic Event
+F1 ↑
+Presence
+Acc. ↑
+Element
+Recall ↑
+Rank-1
+Recall ↑
+Element Type
+Acc. ↑
+Point-in-Mask
+Rate ↑
+Element State
+Recall ↑
+Element Intention
+Recall ↑
+Traffic Control
+-Content Recall ↑
+R/G Conf.
+↓
+Qwen2.5-VL-7B
+– / 0.83
+– / 0.72
+0.80 / 0.87
+0.43 / 0.74
+0.38 / 0.79
+0.89 / 0.96
+0.57 / 0.85
+0.25 / 0.46
+0.22 / 0.46
+– / 0.95
+0.042 / 0.029
+Qwen3-VL-8B
+– / 0.82
+– / 0.71
+0.64 / 0.88
+0.10 / 0.79
+0.10 / 0.83
+0.63 / 0.98
+0.18 / 0.91
+0.13 / 0.47
+0.00 / 0.47
+– / 0.95
+0.037 / 0.026
+Cosmos-Reason2-2B
+– / 0.83
+– / 0.75
+0.81 / 0.88
+0.10 / 0.78
+0.10 / 0.81
+0.71 / 0.95
+0.31 / 0.86
+0.15 / 0.46
+0.02 / 0.46
+– / 0.98
+0.029 / 0.025
+Cosmos-Reason2-8B
+– / 0.82
+– / 0.71
+0.67 / 0.89
+0.17 / 0.78
+0.17 / 0.82
+0.62 / 0.97
+0.63 / 0.85
+0.01 / 0.48
+0.00 / 0.48
+– / 0.95
+0.034 / 0.013
+Alpamayo-R1-10B
+– / 0.82
+– / 0.74
+0.83 / 0.89 0.49† / 0.62 0.67 / 0.69
+– / 0.90
+– / 0.40
+– / 0.45
+– / 0.42
+– / 0.92
+– / 0.044
+Alpamayo-1.5-10B
+– / 0.82
+– / 0.70
+0.84 / 0.91 0.46† / 0.79 0.66 / 0.82
+– / 0.98
+– / 0.92
+– / 0.71
+– / 0.58
+– / 0.97
+– / 0.028
+AutoVLA-3B
+– / 0.82
+– / 0.72
+– / 0.86
+– / 0.79
+– / 0.81
+– / 0.95
+– / 0.80
+– / 0.46
+– / 0.47
+– / 0.97
+– / 0.014
+Impromptu-VLA-7B
+– / 0.83
+– / 0.71
+– / 0.86
+– / 0.67
+– / 0.76
+– / 0.96
+– / 0.85
+– / 0.47
+– / 0.48
+– / 0.96
+– / 0.028
+Note. Values are reported as Base / VG-CoT. “–” denotes an unavailable or non-evaluable capability. † indicates type-only matching because
+grounding ability is unavailable. ↑/↓: higher/lower is better.
+5.3
+RESULTS
+To evaluate the effectiveness of VG-CoT supervision, we compare Base and VG-CoT models in
+scene-level semantics and decision-critical element understanding, reasoning and trajectory predic-
+tion, inference latency, and visual-grounding ablation. Base denotes the domain-adapted model
+trained on the original WOD-E2E data, while VG-CoT denotes the same model trained with VG-
+CoT supervision from AnchorReasoning. Training details are provided in Appendix C.2.
+Figure 7: Example VG-CoT output of Alpamayo-1.5-10B.
+Scene-Level
+Semantics
+and
+Decision-Critical
+Elements.
+Ta-
+ble 2 shows that VG-CoT supervision
+enables scene- and element-level pre-
+dictions
+that
+are
+unavailable
+in
+several
+Base
+models,
+while
+im-
+proving
+the
+ability
+to
+identify
+and
+understand
+decision-critical
+elements.
+More importantly, the
+supervision enables models not only
+to state decision-critical elements
+in text but also to localize them
+in the image (Fig. 7).
+For the
+general-purpose Qwen models and
+the Cosmos embodied-AI founda-
+tion models, the Base models can
+identify
+decision-critical
+elements
+and their types, but tend to retrieve
+only a limited number of such ele-
+ments.
+For example, Qwen2.5-VL
+achieves 0.89 Element Type Acc.
+but only 0.43 Element Recall, while
+Cosmos-Reason2-2B achieves 0.71
+type accuracy but only 0.10 Element
+Recall. After training with VG-CoT supervision, both Element Recall and Rank-1 Recall increase
+across these models. Moreover, Rank-1 Recall is higher than overall Element Recall for every
+trained backbone, indicating that the supervision more reliably captures the elements with the
+strongest influence on the driving decision. The AV-specific models exhibit different behavior.
+The Base Alpamayo models already show stronger decision-critical element retrieval than most
+general-purpose models, but lack explicit grounding and several structured attributes in their native
+outputs. VG-CoT supervision adds these capabilities; Alpamayo-1.5 reaches 0.92 Point-in-Mask
+Rate while maintaining strong Element Recall and Rank-1 Recall. In contrast, Alpamayo-R1 attains
+reasonable Rank-1 Recall but a much lower Point-in-Mask Rate of 0.40, showing that identifying an
+8
+
+
+important element does not necessarily imply precise visual localization. Across all model families,
+Element Type Acc. and Traffic Control-Content Recall are consistently higher than Element State
+and Intention Recall, suggesting that dynamic behavior understanding remains more difficult than
+recognizing element identity and traffic-control semantics under single-frame visual input.
+Table 3: Reasoning, trajectory prediction, and inference efficiency.
+Reasoning
+Trajectory Prediction
+Inference Efficiency
+Model
+Element
+Implication ↑
+Driving Action
+Rationale ↑
+ADE@1s
+↓
+ADE@3s
+↓
+ADE@5s
+↓
+FDE@5s
+↓
+RFS
+Frame ↑
+RFS
+Cluster ↑
+Avg.
+Tokens
+Latency
+(s/frame) ↓
+Qwen2.5-VL-7B
+0.05 / 0.78
+0.47 / 0.69
+4.39 / 0.25
+8.81 / 1.48 12.99 / 3.35 24.15 / 8.23 5.24 / 7.33 5.27 / 7.39 378 / 365 4.76 / 4.62
+Qwen3-VL-8B
+0.54 / 0.79
+0.36 / 0.72
+3.72 / 0.22
+8.44 / 1.34 12.95 / 3.04 23.95 / 7.54 5.37 / 7.54 5.38 / 7.56 384 / 398 4.77 / 4.90
+Cosmos-Reason2-2B
+0.07 / 0.75
+0.05 / 0.71
+16.36 / 0.22 24.03 / 1.35 27.88 / 3.06 36.27 / 7.58 5.21 / 7.56 5.20 / 7.59 617 / 405 7.68 / 5.07
+Cosmos-Reason2-8B
+0.35 / 0.80
+0.22 / 0.72
+5.84 / 0.22 11.36 / 1.34 16.23 / 3.02 28.11 / 7.43 5.28 / 7.56 5.32 / 7.59 529 / 389 9.12 / 6.74
+Alpamayo-R1-10B
+0.61 / 0.70
+0.60 / 0.61
+0.24 / 0.23
+1.46 / 1.38
+3.37 / 2.97
+8.45 / 7.40 7.05 / 7.66 7.06 / 7.69
+– / 403
+– / 7.00
+Alpamayo-1.5-10B
+0.69 / 0.84
+0.61 / 0.80
+0.26 / 0.23
+1.55 / 1.34
+3.49 / 2.94
+8.56 / 7.06 6.66 / 7.81 6.69 / 7.83
+– / 359
+– / 6.24
+AutoVLA-3B
+0.48 / 0.76
+0.32 / 0.69
+0.62 / 0.30
+2.49 / 1.64
+5.01 / 3.60 11.49 / 8.69 6.18 / 7.17 6.10 / 7.24 341 / 373 5.68 / 6.21
+Impromptu-VLA-7B
+0.53 / 0.75
+0.54 / 0.70
+0.23 / 0.22
+2.24 / 1.40
+5.96 / 3.17 15.68 / 7.84 6.31 / 7.45 6.32 / 7.47 144 / 352 1.91 / 4.46
+Average Improvement
++0.36
++0.31
+-3.72
+-6.14
+-7.84
+-11.86
++1.60
++1.63
+-18.50
+-0.32
+Note. Values are reported as Base / VG-CoT. Alpamayo models use “-” for efficiency metrics because their trajectories are generated by a
+separate diffusion module and are not directly comparable.
+Reasoning, Trajectory Prediction, and Inference Efficiency.
+Table 3 shows that VG-CoT super-
+vision improves both Element Implication and Driving Action Rationale across all model families.
+Element Implication consistently scores higher than Driving Action Rationale, indicating that un-
+derstanding the effect of an individual decision-critical element is easier than consolidating multiple
+factors into a final driving decision.
+Table 4: Ablation results on trajectory prediction.
+Model
+ADE
+@1s ↓
+ADE
+@3s ↓
+ADE
+@5s ↓
+FDE
+@5s ↓
+RFS
+Frame ↑
+RFS
+Cluster ↑
+Alpamayo-1.5
+0.26 / 0.23 1.47 / 1.34 3.26 / 2.94 7.97 / 7.06 7.10 / 7.81 7.13 / 7.83
+Qwen3-VL
+0.32 / 0.22 1.48 / 1.34 3.21 / 3.04 7.87 / 7.54 7.44 / 7.54 7.45 / 7.56
+Cosmos-R2-2B 0.33 / 0.22 1.53 / 1.35 3.32 / 3.06 8.00 / 7.58 7.35 / 7.56 7.39 / 7.59
+Note. Values are reported as Ablation / VG-CoT.
+These reasoning gains are accompa-
+nied by improved trajectory prediction:
+ADE/FDE decrease and both RFS met-
+rics increase with VG-CoT supervision.
+The visual-grounding ablation in Ta-
+ble 4 further shows that VG-CoT consis-
+tently outperforms its non-grounded vari-
+ant across all trajectory metrics for the
+three evaluated backbones, indicating that visually grounded CoT provides additional benefits for
+trajectory prediction. Despite the additional reasoning structure, VG-CoT does not require longer
+outputs. The average output length decreases by 18.5 tokens and latency by 0.32 s/frame while tra-
+jectory accuracy improves, suggesting that VG-CoT can provide more compact reasoning without
+sacrificing planning performance.
+6
+LIMITATIONS AND FUTURE WORK
+Our annotations currently cover only the front-left, front, and front-right camera views, leaving side
+and rear views unannotated. Future work will extend AnchorReasoning to full-surround perception,
+potentially using trained models to assist annotation. We also lack explicit depth supervision. Since
+depth and depth change provide important cues for identifying decision-critical elements, future
+work will incorporate depth estimates to strengthen spatial understanding and reasoning.
+7
+CONCLUSION
+We introduce AnchorReasoning, a long-tail autonomous-driving dataset for VLMs that provides
+visually grounded supervision over decision-critical elements, their attributes and implications,
+driving-action rationale, and action and trajectory planning. Its VG-CoT structure explicitly con-
+nects visual evidence with reasoning and planning, while the curriculum SFT strategy enables
+models to progressively acquire these capabilities.
+We further introduce an object-size-aware
+grounding metric for evaluating decision-critical element localization. Experiments across eight
+general-purpose, embodied-AI, and AV-specific backbones show that VG-CoT supervision improves
+grounded reasoning and trajectory prediction. Visual-grounding ablations further confirm that CoT
+9
+
+
+with explicit visual grounding benefits trajectory prediction. Across models, VG-CoT reduces 5-s
+ADE and FDE by 7.84 and 11.86 on average, improves RFS Frame and Cluster by 1.66 and 1.70,
+and reduces inference latency by 0.32 s/frame with fewer reasoning tokens. These results demon-
+strate the value of visually grounded, decision-focused supervision for enhancing VLM reasoning
+and planning in long-tail autonomous driving.
+AI USE STATEMENT
+Generative AI tools were used to assist with dataset annotation and data cleaning and reformatting.
+AI tools were also used for code writing and modification and for language editing of the manuscript
+to improve clarity and readability. All AI-assisted annotations, data processing outputs, code, and
+text were reviewed and verified by the authors before use. The authors take full responsibility for
+the final content, results, and claims of this work.
+ETHICS STATEMENT
+This work is built upon the Waymo Open Dataset. We do not redistribute the original Waymo data;
+only the annotations introduced in this work are released. Users must obtain the corresponding
+source data separately under the terms of the Waymo Open Dataset license.
+REFERENCES
+Hidehisa Arai, Keita Miwa, Kento Sasaki, Kohei Watanabe, Yu Yamaguchi, Shunsuke Aoki, and
+Issei Yamamoto. CoVLA: Comprehensive vision-language-action dataset for autonomous driv-
+ing. In 2025 IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), pp.
+1933–1943. IEEE, 2025.
+Shuai Bai, Yuxuan Cai, Ruizhe Chen, Keqin Chen, Xionghui Chen, Zesen Cheng, Lianghao Deng,
+Wei Ding, Chang Gao, Chunjiang Ge, et al.
+Qwen3-VL technical report.
+arXiv preprint
+arXiv:2511.21631, 2025a.
+Shuai Bai, Keqin Chen, Xuejing Liu, Jialin Wang, Wenbin Ge, Sibo Song, Kai Dang, Peng Wang,
+Shijie Wang, Jun Tang, Humen Zhong, Yuanzhi Zhu, Mingkun Yang, Zhaohai Li, Jianqiang Wan,
+Pengfei Wang, Wei Ding, Zheren Fu, Yiheng Xu, Jiabo Ye, Xi Zhang, Tianbao Xie, Zesen Cheng,
+Hang Zhang, Zhibo Yang, Haiyang Xu, and Junyang Lin. Qwen2.5-VL technical report, 2025b.
+URL https://arxiv.org/abs/2502.13923.
+Chun-Peng Chang, Chen-Yu Wang, Holger Caesar, and Alain Pagani. Probing the reliability of
+driving VLMs: From inconsistent responses to grounded temporal reasoning. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 644–654, 2026.
+Haohan Chi, Huan-ang Gao, Ziming Liu, Jianing Liu, Chenyu Liu, Jinwei Li, Kaisen Yang,
+Yangcheng Yu, Zeda Wang, Wenyi Li, et al. Impromptu VLA: Open weights and open data
+for driving vision-language-action models. Advances in Neural Information Processing Systems,
+38, 2026.
+Zhiyu Huang, Johnson Liu, Rui Song, Zewei Zhou, Ruining Yang, Yun Zhang, Tianhui Cai, Hanyin
+Zhang, Mingxuan Gao, Valeria Xu, et al. nuReasoning: A reasoning-centric dataset and bench-
+mark for long-tail autonomous driving. arXiv preprint arXiv:2605.31572, 2026.
+Ayesha Ishaq, Jean Lahoud, Ketan More, Omkar Thawakar, Ritesh Thawkar, Dinura Dissanayake,
+Noor Ahsan, Yuhao Li, Fahad Shahbaz Khan, Hisham Cholakkal, et al. DriveLMM-o1: A step-
+by-step reasoning dataset and large multimodal model for driving scenario understanding. In 2025
+IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), pp. 20501–20508.
+IEEE, 2025.
+Keishi Ishihara, Kento Sasaki, Tsubasa Takahashi, Daiki Shiono, and Yu Yamaguchi. STRIDE-
+QA: Visual question answering dataset for spatiotemporal reasoning in urban driving scenes. In
+Proceedings of the AAAI Conference on Artificial Intelligence, volume 40, pp. 5257–5266, 2026.
+10
+
+
+Jinkyu Kim, Anna Rohrbach, Trevor Darrell, John Canny, and Zeynep Akata. Textual explanations
+for self-driving vehicles. In European Conference on Computer Vision, pp. 577–593. Springer,
+2018.
+Chunsheng Liu, Xiao Zhang, Faliang Chang, Shuang Li, Penghui Hao, Yansha Lu, and Yinhai Wang.
+Traffic scenario understanding and video captioning via guidance attention captioning network.
+IEEE Transactions on Intelligent Transportation Systems, 25(5):3615–3627, 2023.
+Srikanth Malla, Chiho Choi, Isht Dwivedi, Joon Hee Choi, and Jiachen Li. DRAMA: Joint risk
+localization and captioning in driving. In Proceedings of the IEEE/CVF winter conference on
+applications of computer vision, pp. 1043–1052, 2023.
+Ana-Maria Marcu, Long Chen, Jan H¨unermann, Alice Karnsund, Benoit Hanotte, Prajwal Chi-
+dananda, Saurabh Nair, Vijay Badrinarayanan, Alex Kendall, Jamie Shotton, et al. LingoQA:
+Visual question answering for autonomous driving. In European Conference on Computer Vi-
+sion, pp. 252–269. Springer, 2024.
+Ming Nie, Renyuan Peng, Chunwei Wang, Xinyue Cai, Jianhua Han, Hang Xu, and Li Zhang.
+Reason2Drive: Towards interpretable and chain-based reasoning for autonomous driving.
+In
+European Conference on Computer Vision, pp. 292–308. Springer, 2024.
+NVIDIA. Cosmos-Reason2: Reasoning vision-language model for physical AI and robotics, 2025.
+URL https://github.com/nvidia-cosmos/cosmos-reason2.
+Hugging Face /
+NGC Model Family (2B, 8B, 32B variants).
+Kangan Qian, Sicong Jiang, Yang Zhong, Ziang Luo, Zilin Huang, Tianze Zhu, Kun Jiang, Meng-
+meng Yang, Zheng Fu, Jinyu Miao, et al. AgentThink: A unified framework for tool-augmented
+chain-of-thought reasoning in vision-language models for autonomous driving. In EMNLP (Find-
+ings), pp. 10663–10682, 2025.
+Tianwen Qian, Jingjing Chen, Linhai Zhuo, Yang Jiao, and Yu-Gang Jiang. NuScenes-QA: A multi-
+modal visual question answering benchmark for autonomous driving scenario. In Proceedings of
+the AAAI Conference on Artificial Intelligence, volume 38, pp. 4542–4550, 2024.
+Enna Sachdeva, Nakul Agarwal, Suhas Chundi, Sean Roelofs, Jiachen Li, Mykel Kochenderfer,
+Chiho Choi, and Behzad Dariush. Rank2Tell: A multimodal driving dataset for joint importance
+ranking and reasoning. In Proceedings of the IEEE/CVF winter conference on applications of
+computer vision, pp. 7513–7522, 2024.
+Chonghao Sima, Katrin Renz, Kashyap Chitta, Li Chen, Hanxue Zhang, Chengen Xie, Jens
+Beißwenger, Ping Luo, Andreas Geiger, and Hongyang Li. DriveLM: Driving with graph vi-
+sual question answering. In Proceedings of the European Conference on Computer Vision, pp.
+256–274. Springer, 2024.
+Yan Wang, Wenjie Luo, Junjie Bai, Yulong Cao, Tong Che, Ke Chen, Yuxiao Chen, Jenna Diamond,
+Yifan Ding, Wenhao Ding, et al. Alpamayo-R1: Bridging reasoning and action prediction for
+generalizable autonomous driving in the long tail. arXiv preprint arXiv:2511.00088, 2025.
+Dongming Wu, Wencheng Han, Yingfei Liu, Tiancai Wang, Cheng-zhong Xu, Xiangyu Zhang, and
+Jianbing Shen. Language prompt for autonomous driving. In Proceedings of the AAAI conference
+on artificial intelligence, volume 39, pp. 8359–8367, 2025.
+Shaoyuan Xie, Lingdong Kong, Yuhao Dong, Chonghao Sima, Wenwei Zhang, Qi Alfred Chen,
+Ziwei Liu, and Liang Pan. Are VLMs ready for autonomous driving? an empirical study from
+the reliability, data and metric perspectives. In Proceedings of the IEEE/CVF International Con-
+ference on Computer Vision, pp. 6585–6597, 2025.
+Runsheng Xu, Hubert Lin, Wonseok Jeon, Hao Feng, Yuliang Zou, Liting Sun, John Gorman, Kate
+Tolstaya, Sarah Tang, Brandyn White, et al. WOD-E2E: Waymo open dataset for end-to-end driv-
+ing in challenging long-tail scenarios. In Proceedings of the IEEE/CVF Conference on Computer
+Vision and Pattern Recognition, pp. 3709–3718, 2026.
+11
+
+
+Zewei Zhou, Tianhui Cai, Seth Zhao, Yun Zhang, Zhiyu Huang, Bolei Zhou, and Jiaqi Ma. Au-
+toVLA: A vision-language-action model for end-to-end autonomous driving with adaptive rea-
+soning and reinforcement fine-tuning. Advances in Neural Information Processing Systems, 38:
+27920–27956, 2026.
+A
+DATASET DETAILS
+A.1
+DATASET COMPOSITION AND WOD-E2E SPLITS
+AnchorReasoning is constructed on top of the Waymo Open Dataset for End-to-End Driving (WOD-
+E2E) without modifying the original sensor data or dataset splits. We add semantic and reasoning
+annotations directly to the decoded WOD-E2E frames. Table 5 summarizes the correspondence
+between our annotations and the decoded WOD-E2E splits.
+Table 5: Composition of AnchorReasoning with respect to our decoded copy of the WOD-E2E
+splits.
+Split
+# Decoded Segments
+# Annotated Segments
+# Annotated Frames
+Train
+2,037
+2,037
+415,663
+Validation
+479
+455
+456
+Test
+1,505
+0
+0
+Total annotated
+–
+2,492
+416,119
+For the training split, all 415,663 decoded frames from 2,037 segments are annotated. For valida-
+tion, we annotate the 456 frames for which WOD-E2E provides rater-feedback trajectories. These
+frames come from 455 of the 479 decoded validation segments and are used for both model eval-
+uation and Rater Feedback Score (RFS) computation. Each frame is associated with three rated
+candidate trajectories, resulting in 1,368 human-rated trajectories in total. The remaining decoded
+validation frames are not included in the annotation statistics. The decoded test split is retained for
+completeness but is not annotated. Overall, AnchorReasoning contains 416,119 annotated frames
+from 2,492 WOD-E2E segments and 395,379 decision-critical elements.
+A.2
+IMPACT-RANK DISTRIBUTION
+The distribution is strongly concentrated at the highest ranks: 67.9% of the annotated elements are
+assigned rank 1, 25.3% rank 2, 5.6% rank 3, and 1.0% rank 4, while only 0.2% have rank 5 or higher.
+93.2% of all decision-critical elements fall within the first two ranks and 98.8% within the first three,
+as shown in Fig. 8. This distribution reflects the annotation principle of retaining only elements that
+materially influence the current driving decision rather than exhaustively labeling all visible objects.
+A.3
+ACTION-PLAN DISTRIBUTION
+Figure 9 shows the joint distribution of lateral and longitudinal actions. The distribution is naturally
+imbalanced, with routine lane-keeping action accounting for most frames and more complex lateral
+maneuvers forming a long tail. Importantly, lateral and longitudinal actions are not independent: the
+same lateral maneuver can be associated with substantially different longitudinal responses depend-
+ing on the surrounding constraints and interaction state. The dataset therefore provides supervision
+not only for recognizing individual actions, but also for learning their joint behavioral structure.
+A.4
+ANNOTATION EXAMPLES
+Figure 10- 12 present the representative examples of the AnchorReasoning annotation. The an-
+notation progressively connects scene context, decision-critical element grounding and attributes,
+element-level driving implications, frame-level reasoning, and the final action plan.
+12
+
+
+Figure 8: Distribution of Impact Ranks
+Figure 9: Joint distribution of the normalized lateral and longitudinal actions.
+13
+
+
+Figure 10: Examples of Complete Visual and Textual Annotations.
+14
+
+
+Figure 11: Examples of Complete Visual and Textual Annotations.
+15
+
+
+Figure 12: Examples of Complete Visual and Textual Annotations.
+16
+
+
+B
+AUTOMATIC ANNOTATION TOOLS
+This section describes the automatic tools used to assist dataset annotation and evaluates their re-
+liability before large-scale deployment. To assess annotation quality, we use a manually annotated
+subset of the dataset as reference and compare the outputs of each automatic tool against the cor-
+responding human labels. The automatic tools are applied independently without access to these
+reference labels. Because human annotations may themselves contain ambiguity, the reported re-
+sults measure human–automatic agreement rather than absolute annotation accuracy.
+B.1
+SCENE CONTEXT
+Method.
+We use Qwen3-VL-8B-Instruct to classify five scene-level attributes from the image:
+weather, time of day, visibility, scenario type, and road structure. The model receives only the im-
+age and a predefined label taxonomy, and returns a structured JSON output containing the predicted
+value, confidence, and brief visual evidence. To reduce frame-level fluctuations, predictions are
+further stabilized within each video. Weather and visibility are kept temporally consistent, miss-
+ing scenario labels are propagated from adjacent frames, and isolated road-structure changes are
+detected and corrected. The complete prompt used for scene-context annotation is shown in Fig. 15.
+Reliability Evaluation.
+We evaluate the context classifier on 7,450 manually annotated frames.
+For each context field, human–automatic agreement is computed as
+A = 1
+N
+N
+X
+i=1
+1
+
+ˆyi = yhuman
+i
+
+,
+(3)
+where yhuman
+i
+is the human annotation, ˆyi is the automatic prediction, and 1[·] denotes the indicator
+function.
+Table 6: Human–automatic agreement for scene-context annotations.
+Field
+# Frames
+Agreement
+Time of day
+7,450
+100.00%
+Visibility
+7,450
+88.68%
+Weather
+7,450
+83.57%
+Road structure
+7,450
+82.32%
+Scenario
+7,450
+76.51%
+B.2
+TRAFFIC-LIGHT STATE
+Method.
+Traffic-light states are determined using a rule-based HSV classifier. For each annotated
+traffic light, pixels are extracted from its instance segmentation mask rather than the full bounding
+box to reduce background contamination. RGB pixels are converted to HSV space, and bright pixels
+with V ≥150 are selected for analysis. If fewer than 10 bright pixels are available, all pixels within
+the instance mask are used instead. The adopted HSV thresholds are shown in Table 7. A color is
+considered detected only when at least 10 pixels satisfy the corresponding thresholds and account
+for at least 0.5% of the valid pixels.
+Table 7: HSV thresholds used for traffic-light state recognition.
+State
+Hue Range
+Smin
+Vmin
+Red
+[0, 25] ∪[160, 180]
+50
+80
+Yellow
+[20, 50]
+25
+120
+Green
+[50, 95]
+40
+40
+Reliability Evaluation.
+Evaluation is performed on three manually annotated partitions contain-
+ing 11,318 matched traffic-light instances. The classifier achieves 97.81% overall agreement. Red
+and green recognition is highly reliable, while yellow remains the primary source of error.
+17
+
+
+Table 8: Traffic-light recognition results on the evaluation partitions.
+Partition
+# Lights
+Agreement
+Red Recall
+Green Recall
+p19
+5,300
+98.28%
+0.9935
+0.9938
+p20
+4,869
+97.00%
+0.9949
+0.9733
+p21
+1,149
+99.04%
+0.9832
+1.0000
+All
+11,318
+97.81%
+–
+–
+The red–green confusion rate ranges from 0.40% to 1.34%. In contrast, yellow recall is 0.42 on p19
+and 0.59 on p20, despite relatively high precision. This motivates the conservative labeling strategy
+used in dataset construction: automatic predictions are used to lbael red and green states. Human
+annotate the yellow labels.
+We additionally evaluate three threshold configurations to examine the trade-off between yellow
+recall and false yellow detections. The results on p19 are summarized in Table 9.
+Table 9: Ablation of traffic-light color thresholds.
+Setting
+Overall Agreement
+Yellow Recall
+Yellow Precision
+Adopted
+98.28%
+0.42
+0.95
+Relaxed yellow
+73.47%
+0.87
+0.06
+Intermediate
+97.02%
+0.69
+0.41
+Relaxing the yellow threshold substantially improves yellow recall but introduces a large number
+of false yellow predictions from red lights. The adopted configuration therefore provides a more
+reliable overall trade-off.
+B.3
+OBJECT LOCATION
+Method.
+Object bearing is labeled using the fixed geometry of the iamge. Five spatial regions are
+manually defined on a reference image and reused for all frames.
+For each vehicle, vulnerable road user, or obstacle, we compute the overlap ratio between its bound-
+ing box B and each spatial region Rk:
+sk = Area(B ∩Rk)
+Area(B)
+.
+(4)
+The object is assigned to the region with the largest overlap. When the difference between the two
+highest overlap scores is no greater than 0.05, the bottom-center point of the bounding box is used
+as an additional point-in-polygon cue because it more closely approximates the object’s contact
+position on the road.
+Only the directional prefix of the location label is automatically labeled, while the road-topological
+relation annotation is labeled by human. For example, for the label front left in the oncoming lane,
+only front left is automatically labeled.
+Reliability Evaluation.
+We compare the automatically determined directional prefix with the hu-
+man annotation on 4,439 aligned objects. The two annotations agree on 4,369 instances, corre-
+sponding to an agreement rate of 98.42%. Most disagreements occur between neighboring spatial
+regions, such as front and front left, rather than between opposite directions. This indicates that the
+remaining errors are primarily associated with region boundaries.
+B.4
+VEHICLE TYPE
+Method.
+Vehicle types are classified using Qwen3-VL-8B-Instruct. Each vehicle is cropped from
+the image using its bounding box with a 20-pixel margin and classified into one of seven categories:
+Car, Truck, Emergency vehicle, Bus, Construction vehicle, School bus, and Other. The prompt is
+shown in Fig. 16
+18
+
+
+Reliability Evaluation.
+The classifier is evaluated on 3,720 manually labeled vehicles and agrees
+with the human annotations on 3,681 instances, yielding 98.95% agreement. The remaining dis-
+agreements are concentrated around visually similar vehicle categories, particularly the boundary
+between cars, pickup trucks, and large van-like vehicles.
+B.5
+REASONING CHAIN GENERATION
+Method.
+The reasoning chain is generated in two stages. First, an element-level driving implica-
+tion is generated for each decision-critical element. The inputs include the grounded iamge, scene
+context, ego state, navigation intent, and the structured attributes of the element. The implication
+describes how the element affects the ego vehicle’s intended path, available motion, right-of-way,
+or local maneuver options. Each element is interpreted independently so that its causal effect is
+established before multiple factors are integrated. Second, the element-level implications are com-
+bined with their impact ranks, ego state, and navigation intent to generate a frame-level rationale
+and final action plan. The rationale integrates the dominant constraints and enabling factors, while
+the final action plan specifies the resulting short-horizon longitudinal and lateral action. The plan is
+constrained to the action vocabulary used in AnchorReasoning.
+To balance annotation quality and computational cost, scenes are routed according to annotation
+complexity. Simple scenes, defined as those containing at most one decision-critical element or
+exactly two traffic-control elements, are processed using a locally deployed Qwen3.5-122B model,
+while more complex scenes are processed using GPT-5.2. All generated implications, rationales,
+and action plans are subsequently inspected and corrected through a dedicated annotation interface.
+Consecutive frames with identical annotations may reuse the previous output to improve temporal
+consistency and reduce unnecessary inference. The complete prompt used for driving implication
+annotation and rationale is shown in Fig. 17, 18.
+B.6
+ACTION–TRAJECTORY CONSISTENCY CHECK.
+After annotation, we apply a rule-based consistency check to verify whether each annotated action
+plan agrees with the corresponding future trajectory. The action plan is mapped to one of four
+longitudinal categories, {accelerate, decelerate, cruise, stop}, and, when explicitly specified, to one
+of three lateral categories, {left turn, right turn, straight}.
+The future trajectory is converted to the same motion representation using kinematic and geometric
+rules. Let v0 denote the current ego speed, vend the mean speed over the final 1 s of the future
+trajectory, and vmax the maximum future speed. The longitudinal trajectory category is defined as
+ψlon(τ) =
+
+
+
+
+
+
+
+stop,
+vend < 0.5,
+accelerate,
+(v0 < 0.5 ∧vmax ≥1.0) ∨(vend −v0 > max(1.0, 0.2v0)),
+decelerate,
+v0 −vend > max(1.0, 0.2v0) ∧vend ≥0.5,
+cruise,
+otherwise.
+(5)
+For lateral motion, the trajectory is classified as a left or right turn when the absolute heading change
+exceeds 25◦, with the sign determining the turning direction; otherwise, it is classified as straight.
+Consistency is checked using the compatibility rules rather than strict category equality. For exam-
+ple, an annotated decelerate action is compatible with a trajectory that decelerates or stops, whereas
+an annotated stop action is inconsistent with a trajectory that immediately continues at normal speed.
+A sample is considered consistent only when its longitudinal action and any explicitly specified lat-
+eral action are non-contradictory. Inconsistent samples are flagged for manual review and correction.
+C
+TRAINING AND EVALUATION DETAILS
+C.1
+HARDWARE AND IMPLEMENTATION DETAILS
+All training and evaluation experiments are conducted on NVIDIA B200 GPUs, with two GPUs
+used for training. Training uses distributed data parallelism with DeepSpeed ZeRO Stage 2 and
+19
+
+
+bfloat16 precision. FlashAttention-2 is enabled for efficient attention computation, and gradient
+checkpointing is applied to reduce memory consumption. We use full-parameter fine-tuning for all
+trainable components without LoRA or other parameter-efficient adaptation methods.
+C.2
+TRAINING CONFIGURATION
+For both domain adaptation and our Supervised Fine-Tuning(SFT), each sample uses the same in-
+put representation: a single panorama stitched from three forward-facing cameras, the ego-vehicle
+motion history, and the high-level navigation intent. The motion history contains 16 waypoints over
+the preceding 4 s and is provided as textual input. No temporal image sequence, LiDAR, HD map,
+or auxiliary prediction head is used.
+Domain Adaptation.
+For the domain-adapted baselines, training is performed on the original
+WOD-E2E data without using the additional AnchorReasoning annotations.
+We preserve each
+model’s original training objective, output format, and training configuration as much as possi-
+ble. The input also follows each model’s original formulation, with the only modification being
+the visual input, which is replaced by a single-frame panorama stitched from three forward-facing
+cameras. The target output follows each model’s original formulation, such as its native reasoning,
+action, or trajectory representation, rather than the visually grounded chain-of-thought (VG-CoT)
+annotation format.
+Supervised Fine-Tuning.
+Our SFT uses the same input representation but supervises the model
+with the structured VG-CoT output. Stage I focuses on scene-level semantics and decision-critical
+element understanding, including traffic events, element presence, element identification, visual
+grounding, impact rank, and element attributes. Stage II is initialized from the best Stage-I check-
+point and extends the output to the complete VG-CoT chain, including ego-state understanding,
+element-level implications, driving-action rationale, action planning, motion, and future trajectory.
+Table 10 summarizes the optimization settings used for SFT across all backbones. Stage I starts from
+the original pretrained or released backbone, whereas Stage II is initialized from the best Stage-I
+checkpoint. The same optimization settings are used across backbones unless otherwise specified.
+Table 10: Training hyperparameters for Stage I and Stage II.
+Hyperparameter
+Stage I
+Stage II
+Hyperparameter
+Stage I
+Stage II
+Epochs
+2
+2
+Optimizer
+AdamW
+AdamW
+Per-device batch size
+1
+1
+Adam β1, β2
+0.9, 0.999
+0.9, 0.999
+Effective batch size
+64
+64
+Adam ϵ
+10−8
+10−8
+Learning rate
+1 × 10−5
+5 × 10−6
+Weight decay
+0
+0
+LR scheduler
+Cosine
+Cosine
+Max. gradient norm
+1.0
+1.0
+Warmup ratio
+0.03
+0.03
+Precision
+bf16
+bf16
+Visual encoder
+Trainable
+Frozen
+DeepSpeed
+ZeRO-2
+ZeRO-2
+Visual LR multiplier
+0.1
+–
+Random seed
+42
+42
+C.3
+EVALUATION METRICS
+Scene and Element-Level Semantics.
+We evaluate scene understanding using Context Acc. and
+Traffic Event F1. Context Acc. is the macro-average accuracy over five scene-context dimensions:
+weather, daytime, visibility, scenario type, and road structure. Traffic Event F1 measures set-level
+agreement between predicted and annotated traffic events. Presence Acc. is the frame-level binary
+accuracy of whether at least one decision-critical element is present. Element State Recall and
+Element Intention Recall are macro-averaged recall scores over normalized behavior categories for
+matched vehicles and vulnerable road users. Sign-Content Recall evaluates the semantic content
+of matched traffic signs using macro-averaged recall over the closed-set control labels. R/G Conf.
+measures the fraction of red and green traffic lights that are confused with each other; lower values
+are better.
+20
+
+
+Decision-Critical Element Grounding.
+The model emits one grounding point for each predicted
+decision-critical element. Because no bounding box is predicted, conventional IoU-based matching
+is not applicable. We therefore use a point-to-region distance defined with respect to the ground-truth
+segmentation mask. For a predicted point x and ground-truth element g,
+d(x, g) =
+(0,
+x ∈Mg,
+min
+p∈Mg ∥x −p∥2,
+otherwise,
+(6)
+where Mg denotes the segmentation mask of g. If a mask is unavailable, we fall back to the distance
+to the ground-truth bounding-box boundary rather than its center.
+Predicted and ground-truth elements are matched one-to-one using a scale-adaptive assignment
+threshold
+τassign(g) = clip (1.5 dg, 60, 300) ,
+(7)
+where dg is the diagonal length of the ground-truth bounding box in pixels. Ground-truth elements
+are processed in increasing numerical impact rank, with rank 1 matched first, and each element
+claims the nearest unmatched prediction within τassign. Matching is type-agnostic so that localiza-
+tion and semantic classification are evaluated independently. Unmatched ground-truth elements are
+counted as misses, while unmatched predictions are treated as false positives.
+Element Recall is defined as
+Rdet = |M|
+|G| ,
+(8)
+where G is the set of ground-truth decision-critical elements and M is the subset successfully
+matched to predictions. Rank-1 Recall applies the same criterion only to elements with impact
+rank 1. Element Type Acc. measures semantic classification accuracy over the matched elements.
+Localization precision is evaluated using Point-in-Mask Rate,
+Rin =
+1
+|M|
+X
+g∈M
+1
+
+xπ(g) ∈Mg
+
+,
+(9)
+where π(g) denotes the prediction matched to g and xπ(g) is its predicted image point. Unlike
+bounding-box containment, this metric requires the predicted point to fall on the actual segmented
+object rather than on background pixels inside its bounding box.
+Reasoning.
+Element-level implications and frame-level rationales are open-ended textual outputs
+for which lexical-overlap metrics are poorly aligned with semantic correctness. We therefore evalu-
+ate them using GPT-5.5 as a judge.
+For Element Implication, the judge assesses whether the prediction correctly characterizes the cor-
+responding decision-critical element, including its driving-relevant state or content, and whether it
+correctly describes the element’s influence on ego driving. For Driving Action Rationale, the judge
+assesses whether the prediction appropriately integrates the relevant scene factors, identifies the
+dominant factor shaping the driving decision, and correctly explains how that factor influences ego
+action.
+For each prediction, GPT-5.5 returns two binary judgments, scause
+i
+, seffect
+i
+∈{0, 1}. We average the
+two judgments for each sample and then average across all valid samples. The Element Implication
+score is
+SEI =
+1
+NEI
+NEI
+X
+i=1
+scause
+i,EI + seffect
+i,EI
+2
+,
+(10)
+and the Driving Action Rationale score is
+SDAR =
+1
+NDAR
+NDAR
+X
+i=1
+scause
+i,DAR + seffect
+i,DAR
+2
+,
+(11)
+21
+
+
+where NEI and NDAR denote the numbers of valid judged samples for the two metrics, respectively.
+The complete GPT-5.5 judge prompts are shown in Fig. 19 and Fig. 20.
+Trajectory Prediction.
+All predicted trajectories are converted to a common 5 s, 4 Hz evaluation
+grid before scoring. ADE@1s, ADE@3s, and ADE@5s measure the mean Euclidean displacement
+error between the predicted and ground-truth trajectories over the corresponding prediction hori-
+zons. FDE@5s measures the Euclidean error at the final 5 s waypoint. We further report the official
+Waymo Rater Feedback Score (RFS) using the released WOD-E2E scoring function and its default
+parameters. RFS Frame averages the per-frame RFS over all evaluation frames, whereas RFS Clus-
+ter first averages RFS within each official scenario cluster and then averages across clusters, thereby
+assigning equal weight to different scenario types. RFS ranges from 0 to 10, with higher values
+indicating better agreement with human-rated driving trajectories.
+D
+QUALITATIVE EXAMPLES
+D.1
+FAILURE CASES
+Fig. 13 presents representative failure cases. In Fig. 13(a), the model incorrectly predicts the state
+and intention of the vehicle at the front-right. This reflects a limitation of single-frame input: motion-
+related attributes such as state and intention are difficult to infer reliably without explicit temporal
+visual cues. Fig. 13(b) shows a case where the model identifies a decision-critical element in text
+but fails to ground it correctly in the image. This suggests that semantic recognition and visual
+localization are not always fully aligned: the model may recognize the relevance of an element from
+scene context while failing to establish an accurate spatial correspondence, especially for small,
+partially occluded, or visually ambiguous elements. Fig. 13(c) shows a more challenging failure in
+which two human-annotated decision-critical elements are omitted from both the textual prediction
+and visual grounding. Such disagreement may arise from insufficient geometric supervision. The
+current annotations do not explicitly provide cues such as object distance, distance change rate, or
+ego-vehicle dimensions, which are important for determining whether an element constrains the
+ego vehicle’s future driving space. Incorporating these spatial cues may improve decision-critical
+element selection in future work.
+D.2
+SUCCESSFUL CASES
+Fig. 14 presents representative successful predictions. In Fig. 14(a), the model correctly identifies
+and grounds both the parked bus and the oncoming vehicle. It further captures their different effects
+on ego driving: the bus constrains the available lateral space, while the oncoming vehicle limits the
+feasibility of moving further left. These element-level implications are consolidated into a coher-
+ent driving rationale and action plan. Fig. 14(b) illustrates a more complex multi-object interaction.
+The model correctly identifies and grounds all three decision-critical elements, including the backing
+vehicle, construction vehicle, and pedestrian, and interprets how each constrains the ego vehicle’s
+future motion. Their implications are then integrated into the final decision to keep lane and deceler-
+ate, producing a trajectory closely aligned with the ground truth. This example shows that VG-CoT
+can connect multiple visually grounded elements with reasoning and trajectory planning in complex
+scenes.
+22
+
+
+Figure 13: Representative failure cases.
+23
+
+
+(a)
+(b)
+Figure 14: Representative successful cases.
+24
+
+
+E
+PROMPTS
+This section provides the full prompts used in our annotation and evaluation pipeline, including
+scene-context annotation (Fig. 15), vehicle-type classification (Fig. 16), element-level implication
+generation (Fig. 17), frame-level rationale and action planning (Fig. 18), and the judge prompts for
+evaluating implications and rationales (Figs. 19 and 20).
+Figure 15: Prompt used for automatic scene-context annotation.
+25
+
+
+Figure 16: Prompt used for automatic vehicle-type classification.
+Figure 17: Prompt used for generating element-level driving implications.
+26
+
+
+Figure 18: Prompt used for frame-level rationale and action planning.
+27
+
+
+Figure 19: Prompt used for implication judge.
+Figure 20: Prompt used for rationale judge.
+28

@@ -1,0 +1,2518 @@
+SV-WAM: An Efficient Surround-View World-Action Model for End-to-End
+Autonomous Driving
+Jinyang Wang1,2, Shiwei Li2∗†, Junjian Wang1, Zhiqiang Deng2, Jianbin Gao3,
+Yihang Zhao1, Liu Liu2, Yongjia Zhao4, Jinlong Chen5, Huirui Xu1,
+Yifeng Pan2, Kangwei Liu2, Fan Ren2, Ji Tao2, Minghao Yang1∗
+1Institute of Automation, Chinese Academy of Sciences
+2Chongqing Changan Technology Co., Ltd.
+3Civil Aviation University of China
+4Beihang University
+5Guilin University of Electronic Technology
+Abstract
+World models (WMs) have demonstrated strong potential for
+end-to-end autonomous driving by learning predictive rep-
+resentations of future scene dynamics. However, generating
+future videos during inference introduces substantial com-
+putational overhead, leading many recent driving WMs to
+adopt a single front camera as input for efficient deploy-
+ment. This design restricts spatial coverage in safety-critical
+maneuvers such as lane changes, merges, and turns. To ad-
+dress this limitation, we propose SV-WAM, a surround-view
+world-action model (WAM) that preserves full six-camera
+observations while maintaining efficient inference. SV-WAM
+leverages future-video prediction as dense training supervi-
+sion for action learning within a shared generative model,
+rather than as an inference-time output. At the core of this
+design is an action-centered causal mask that prevents ac-
+tion tokens from attending to future-video tokens during joint
+action-video denoising. Consequently, the video branch can be
+discarded at deployment, enabling efficient action-only plan-
+ning. Furthermore, we introduce a differentiable drivable-area
+compliance regularizer that penalizes vehicle-footprint cor-
+ners approaching or crossing drivable boundaries, improving
+planning safety and boundary awareness. Extensive exper-
+iments on the closed-loop NAVSIMv2 benchmark and the
+open-loop nuScenes benchmark demonstrate that SV-WAM
+achieves state-of-the-art planning performance with low in-
+ference latency and competitive zero-shot transfer capability.
+Introduction
+World models have recently emerged as a prominent ap-
+proach for end-to-end autonomous driving (Zhang et al.
+2025; Zhao et al. 2025; Xu et al. 2026; Liu et al. 2026; Li et al.
+2026b; Zheng et al. 2024a; Hu et al. 2023a; Wang et al. 2024;
+Gao et al. 2024). By forecasting the evolution of the driving
+scene, they provide planners with future-aware representa-
+tions that extend beyond sparse action imitation (Zhang et al.
+2025; Zhao et al. 2025; Xu et al. 2026; Liu et al. 2026; Li et al.
+2026b). This predictive supervision is particularly valuable
+for closed-loop planning, in which safe actions depend not
+only on the current observation but also on the constraints
+imposed by surrounding agents and road structure.
+∗Corresponding author.
+†Project leader.
+300
+600
+900
+1200
+1500
+Latency on Single NVIDIA H20 (ms)
+84
+85
+86
+87
+88
+89
+90
+91
+92
+EPDMS
+Others
+Ours
+Ours
+PWM
+Epona
+DriveLaW
+DriveVLA-W0
+Figure 1: Efficiency-performance overview on a single
+NVIDIA H20 GPU (preprocessed-input-to-trajectory la-
+tency). SV-WAM reaches the best NAVSIMv2 EPDMS at
+the lowest latency despite using six-camera input.
+However, deploying world models for autonomous driving
+introduces a fundamental trade-off between reliability and
+computational efficiency. Reliable planning often requires
+surround-view observations, since side and rear context is
+critical for lane changes, merges, turns, and interactions with
+nearby vehicles. As illustrated in Figure 2, a front-view-only
+model may miss agents in lateral or rear blind zones, leading
+to unsafe decisions. Nevertheless, recent WM-based plan-
+ners, such as Epona (Zhang et al. 2025), PWM (Zhao et al.
+2025), DriveVLA-W0 (Li et al. 2026b), and DriveLaW (Xia
+et al. 2026), commonly adopt single-front-view inputs at in-
+ference to reduce the cost of future prediction and action gen-
+eration. A straightforward extension to six-view future-video
+rollout would substantially increase the number of visual to-
+kens and the inference latency. Therefore, the key challenge
+is how to retain surround-view evidence for reliable planning
+while avoiding expensive multi-view future-video generation
+at deployment.
+To address this challenge, we propose SV-WAM, an ef-
+ficient surround-view world-action model that uses future
+arXiv:2609.03602v1  [cs.CV]  3 Sep 2026
+
+
+video as training-time supervision rather than an inference-
+time output. During training, SV-WAM jointly denoises
+future actions and six-view future-video latents within a
+shared diffusion-transformer backbone, allowing action pre-
+diction to benefit from future-scene dynamics through the
+shared model parameters. To avoid the inference-time com-
+putational cost of future-video prediction, we introduce an
+action-centered causal mask that prevents action tokens
+from attending to future-video tokens. This causal design
+allows the video branch to be removed at deployment, en-
+abling efficient action-only inference while retaining full
+six-view spatial coverage. We further introduce a differ-
+entiable drivable-area compliance regularizer that penal-
+izes vehicle footprints near or beyond drivable boundaries,
+thereby improving drivable-area compliance and planning
+safety without additional inference cost.
+Experiments show that SV-WAM achieves strong plan-
+ning performance with low latency. On NAVSIMv2, SV-
+WAM reaches 91.0 EPDMS and runs in 342 ms on a sin-
+gle NVIDIA H20 GPU from preprocessed inputs to trajec-
+tory output, outperforming recent WM-based planners. On
+nuScenes, SV-WAM transfers zero-shot with 0.89 m average
+L2 error and 0.16% average collision rate.
+Our contributions can be summarized as follows:
+1. We propose SV-WAM, an efficient surround-view world-
+action model with an action-centered causal mask that
+enables co-training of future actions and surround-view
+future-video latents while retaining action-only inference
+with full six-view conditioning.
+2. We introduce a differentiable drivable-area regularizer
+that encourages predicted trajectories to remain within
+the drivable region, improving road compliance and
+safety without increasing inference cost.
+3. Our method achieves state-of-the-art performance on
+NAVSIMv2 and demonstrates competitive zero-shot
+transfer on nuScenes with low latency.
+Related Work
+End-to-End
+Autonomous
+Driving.
+End-to-end
+au-
+tonomous driving predicts future ego trajectories directly
+from raw sensor inputs (Hu et al. 2022). BEV-based methods
+such as UniAD (Hu et al. 2023b) and VAD (Jiang et al. 2023)
+integrate perception, prediction, and planning into a unified
+framework, while DiffusionDrive (Liao et al. 2025) improves
+multimodal trajectory generation with a truncated diffusion
+policy. Recent VLA-based planners further enhance driving
+with semantic reasoning; for example, ReCogDrive (Li et al.
+2026c) connects scene-level understanding with continuous
+trajectory generation, and OpenDriveVLA (Zhou et al. 2026)
+grounds action prediction on 2D/3D visual representations
+and language commands (Tian et al. 2024; Zhou et al. 2025;
+Li et al. 2026a). Despite their strong performance, many ex-
+isting structured planners rely on multiple task-specific mod-
+ules to construct explicit intermediate representations, such
+as object detections or occupancy maps, before trajectory
+generation. These modules increase architectural complex-
+ity. Moreover, they lack explicit modeling of future scene
+evolution.
+F
+Accelerate
+F
+F
+Figure 2: Motivation for surround-view planning. For exam-
+ple, at unsignalized intersections, front-view-only planners
+may lack sufficient lateral context and make unsafe decisions
+in complex traffic.
+Driving World Models for Planning.
+Driving world mod-
+els have recently emerged for end-to-end planning (Chen,
+Wang, and Zhang 2025). Epona (Zhang et al. 2025) learns
+an autoregressive diffusion world model that couples future
+scene prediction with trajectory planning, while PWM (Zhao
+et al. 2025) integrates world modeling and trajectory plan-
+ning through collaborative state–action prediction. Driv-
+eLaW (Xia et al. 2026) further unifies planning and video
+generation in a latent driving world, demonstrating the value
+of future visual prediction for downstream planning. How-
+ever, these recent WM-based planners commonly use only
+a front view at inference, which limits spatial coverage in
+safety-critical maneuvers such as lane changes, merges, and
+turns. Recent latent world models extend this paradigm to
+three-front-view observations but rely on external percep-
+tion priors. World4Drive (Zheng et al. 2025) uses pretrained
+spatial–semantic features for future-latent prediction and tra-
+jectory evaluation, while WorldRFT (Yang et al. 2026) lever-
+ages vision–geometry priors for planning-aligned represen-
+tation learning and reinforcement fine-tuning. Both retain
+pretrained geometric encoders in the inference path, intro-
+ducing additional intermediate estimation stages. Directly
+extending such models to full surround-view inputs would
+further amplify the computational burden.
+Efficient World-Action Models.
+Existing WAMs often
+follow imagine-then-execute or joint video–action modeling
+paradigms (Du et al. 2023), where future-video prediction
+remains in the inference loop and introduces substantial la-
+tency. Recent embodied WAMs therefore shift future predic-
+tion from test-time imagination to training-time supervision.
+Fast-WAM (Yuan et al. 2026) employs a shared-attention
+Mixture-of-Transformers architecture that couples a video
+DiT with an action expert DiT, retaining video co-training
+while using the video branch only as a single-pass world en-
+coder at inference. GigaWorld-Policy (Ye et al. 2026a) uses
+future-video generation as training-time supervision and re-
+tains only action prediction at test time. We bring this effi-
+ciency principle to surround-view driving, where preserving
+lateral and rear context must be balanced against the cost of
+multi-view future generation.
+
+
+Methodology
+Overview
+Figure 3 presents the overall framework of SV-WAM, which
+consists of four components. First, input tokenization con-
+verts historical surround-view observations, ego states, and
+action sequences into transformer-compatible tokens. Sec-
+ond, the surround-view world–action model jointly denoises
+future actions and future-video latents using an action-
+centered causal mask. Third, the drivable-area compliance
+regularizer penalizes vehicle footprints that approach or cross
+non-drivable boundaries during training. Finally, at infer-
+ence, SV-WAM removes the future-video branch and reuses
+the cached condition prefix across denoising steps, enabling
+efficient action-only planning.
+Input Tokenization
+This subsection describes how SV-WAM converts surround-
+view images, ego states, actions, and future-video latents into
+transformer inputs.
+Surround-View Video Encoding.
+Let Ncam = 6 denote
+the number of cameras. At each timestamp i, the camera
+images are arranged in a fixed order and concatenated along
+the width dimension:
+Xi = Concatw(I1
+i , I2
+i , . . . , INcam
+i
+),
+(1)
+where Iv
+i denotes the image from the v-th camera and Xi is
+the resulting surround-view frame.
+We encode the full training video sequence X−H+1:F
+using the frozen 3D causal VAE encoder of Wan2.2-TI2V-
+5B (Wan Team 2025). The resulting latents are split along
+the temporal dimension:
+[Zref, Zfut] = Evae(X−H+1:F ).
+(2)
+Here, H and F denote the numbers of historical and fu-
+ture frames, respectively; Zref represents the clean historical
+prefix used for visual conditioning, while Zfut contains the
+future-video latents used only during training. Both are tok-
+enized using a shared video tokenizer:
+[Vref, Vfut] = Tokv([Zref, Zfut]).
+(3)
+In implementation, Tokv partitions the latents into spa-
+tiotemporal patches and embeds them into a flattened
+transformer-token sequence.
+State and Action Encoding.
+Following the NAVSIM input
+convention (Dauner et al. 2024), we denote the ego-state
+history as S = {si}0
+i=−H+1, where si ∈R8. An MLP maps
+the state history into state tokens:
+S = ϕs(S).
+(4)
+The future action sequence is written as A = {ak =
+(∆xk, ∆yk, ∆ψk)}K
+k=1, where each action represents a step-
+wise ego-relative motion increment. The sequence is pro-
+jected into action tokens using an MLP tokenizer:
+A = ϕa(A).
+(5)
+Surround-View World-Action Model
+This subsection introduces the action-centered causal mask
+mechanism for efficient inference and the joint flow-matching
+training used in SV-WAM.
+Action-Centered Causal Mask.
+Recent video-action driv-
+ing models jointly generate future visual forecasts and action
+sequences in a shared generative process (Liu et al. 2026). In-
+spired by embodied world-action modeling (Ye et al. 2026a),
+we design an action-centered causal mask for efficient plan-
+ning. The mask blocks the direct attention dependency of
+action tokens on future-video tokens, which are expensive to
+denoise and are not instantiated in the action-only inference
+path.
+The mask is applied over the packed token sequence during
+self-attention. During flow training, we sample a shared base
+time u ∼U(0, 1) and apply a shifted flow schedule to obtain
+t for both action and future-video denoising. Given Gaussian
+noises ϵa and ϵz, we construct
+At = (1 −t)A0 + tϵa,
+Zfut
+t
+= (1 −t)Zfut
+0
++ tϵz, (6)
+where A0 and Zfut
+0
+denote the clean future action sequence
+and clean future video latents. Using the tokenizers defined
+in the previous subsection, At and Zfut
+t
+are converted into
+noisy action tokens At and noisy future-video tokens Vfut
+t
+.
+The resulting self-attention sequence is
+Yt = [S, Vref, At, Vfut
+t
+].
+(7)
+As shown in Figure 4, state tokens and reference video
+tokens form the clean condition prefix and attend only to
+themselves. Action tokens attend to the condition prefix and
+action tokens, while future video tokens attend to the condi-
+tion prefix, action tokens, and future video tokens.
+Let Ω= {Zref, S} denote the condition consisting of ref-
+erence video latents and ego-state history. The mask induces
+an action-centered factorization:
+pθ(A0, Zfut
+0
+| Ω) = pθ(A0 | Ω)pθ(Zfut
+0
+| Ω, A0).
+(8)
+Thus, future-video denoising provides future-dynamics su-
+pervision through the shared model parameters, while action
+tokens do not attend to future-video tokens in the forward
+pass. This property enables action-only inference.
+SV-WAM Training.
+We train SV-WAM with flow match-
+ing (Lipman et al. 2023; Liu, Gong, and Liu 2023) on both
+future actions and future video latents. Given the noisy vari-
+ables defined above, the target velocity fields for the two
+branches are obtained by differentiating the interpolations
+At and Zfut
+t
+with respect to t:
+v⋆
+a = ϵa −A0,
+v⋆
+z = ϵz −Zfut
+0 .
+(9)
+The masked transformer takes the self-attention sequence
+Yt and the flow time t as input:
+(ˆva, ˆvz) = fθ(Yt, t),
+(10)
+where fθ denotes the masked velocity predictor with learn-
+able parameters θ, and ˆva and ˆvz are the predicted action- and
+video-velocity fields. The action velocity is decoded from the
+action token positions using an MLP action head, while the
+
+
+Input Tokenization
+Surround-View World-Action Model
+ Efficient Action-Only Inference
+Training Only
+State/
+Action
+MLP
+VAE
+Encoder
+GT Trajectory
+GT Surround-view 
+Video Tokens
+Action Chunk
+Historical Surround-view 
+Observations
+Action
+Head
+�act
+�vid
+- H : 0
+- H : 0
+1 : K
+Ego-State
+Tokens
+ Future Action
+Tokens
+Surround-view Future
+Video Tokens
+Observation
+Tokens
+Action-Centered Causal Masked Attention
+Q          K, V
+Q         K, V
+Q          K, V
+FFN
+Ego State
++ Noisy
+Frozen
+Trainable
+× blocked attention
+Frozen SV-WAM
+Noisy Action
+Tokens
+Prefix KV Cache
+×N
+Ego-State
+Tokens
+Observation
+Tokens
+Condition Tokens
+Action Tokens
+Future Video Tokens
+Drivable-Area Compliance
+Drivable 
+Area
+Non
+Drivable
+Road Boundary
+Vehicle Footprint
+Out-of-Boundary
+Penalty
+Predicted Action Chunk
+�dac
+Figure 3: Overview of SV-WAM. During training, SV-WAM jointly denoises future actions and future-video latents conditioned
+on six-view historical observations. The action-centered causal mask blocks action-token attention to future-video tokens, while
+the drivable-area compliance regularizer promotes road-compliant planning. At inference, the future-video branch is removed,
+enabling efficient action-only planning with full six-view context.
+w/ Attention
+w/o Attention
+Q K
+Ego-State
+Tokens
+Reference
+Video Tokens
+Future
+Action Tokens
+Future
+Video Tokens
+Figure 4: Action-centered causal mask. Action tokens at-
+tend to ego-state and reference-video tokens but are blocked
+from attending to future-video tokens, whereas future-video
+tokens can attend to action tokens. This asymmetric depen-
+dency supports future-video co-training without making ac-
+tion prediction dependent on future-video tokens at infer-
+ence.
+video velocity is projected from the future video token posi-
+tions and unpatchified back to the VAE latent space.
+The flow matching loss is defined as
+Lfm = λact ∥ˆva −v⋆
+a∥2
+2
++ λvid ∥ˆvz −v⋆
+z∥2
+2 .
+(11)
+The action branch directly optimizes trajectory generation,
+while the future video branch encourages the model to cap-
+ture future scene dynamics.Becausethecausalmaskprevents
+action-token queries from attending to future-video keys and
+values, future-video supervision introduces no inference-
+time dependency into the action path.
+Drivable Area Compliance Regularization
+Flow matching learns future ego actions from trajectory
+supervision, but it does not explicitly constrain the sim-
+ulated vehicle footprint with respect to drivable bound-
+aries. Motivated by the drivable area compliance metric in
+NAVSIM (Dauner et al. 2024), we propose a drivable area
+compliance regularizer that softly penalizes predicted tra-
+jectories whose footprint approaches or leaves the drivable
+region. Given the predicted action velocity ˆva, we first re-
+cover the clean action prediction from the noisy action input:
+ˆA0 = At −tˆva.
+(12)
+Given a binary drivable area map b, we construct a signed
+distance field Φ in the ego-centric coordinate system:
+Φ(u) = Dnon(u) −Ddrive(u),
+(13)
+where Dnon(u) and Ddrive(u) denote the Euclidean dis-
+tances from location u to the nearest non-drivable and driv-
+able cells, respectively. Under this convention, Φ(u) > 0
+indicates that u lies inside the drivable area, while Φ(u) < 0
+indicates an off-road location.
+After denormalization, we follow the official NAVSIM
+evaluation pipeline (Dauner et al. 2024) and use its LQR-
+based tracker to roll out ˆA0 into simulated ego poses Q =
+{qi}Nq
+i=1, where qi = (xi, yi, ψi). For each simulated pose,
+we compute the four corner points ci,j of the vehicle footprint
+
+
+and sample their signed distances from the signed distance
+field:
+di,j = Φ(ci,j),
+j = 1, . . . , 4.
+(14)
+Since the corner points are continuous coordinates, Φ(ci,j)
+is evaluated by bilinear interpolation on the signed distance
+field grid.
+We apply a smooth margin penalty to each sampled dis-
+tance:
+ℓ(di,j) = β log
+
+1 + exp
+m −di,j
+β
+
+,
+(15)
+where m is the safety margin and β controls the smoothness.
+The final drivable area compliance loss is computed by log-
+mean-exp aggregation over all footprint penalties:
+Ldac = ρ log
+
+1
+4Nq
+Nq
+X
+i=1
+4
+X
+j=1
+exp
+ℓ(di,j)
+ρ
+
+,
+(16)
+where ρ is the aggregation temperature. This aggregation acts
+as a smooth maximum and assigns larger weights to high-
+risk footprint violations than simple averaging. The overall
+training objective is
+L = Lfm + λdacLdac.
+(17)
+Efficient Action-Only Inference
+At inference time, we keep the same reference video and state
+conditioning path but omit noisy future video tokens from
+the transformer sequence. The inference sequence becomes
+Yact
+t
+= [S, Vref, At].
+(18)
+The same trained model is evaluated under the corresponding
+action-only mask:
+ˆva = fθ(Yact
+t
+, t),
+(19)
+where fθ denotes the trained action-velocity predictor. Start-
+ing from Gaussian action noise, the action scheduler itera-
+tively updates the action sequence using the predicted veloc-
+ity field. Since noisy future video tokens are not instantiated
+and the video output branch is skipped, SV-WAM avoids fu-
+ture video denoising and decoding during deployment while
+retaining the representation benefit of training-time video
+co-denoising. To further improve efficiency, we cache and
+reuse the conditioning prefix across denoising steps.
+Experiments
+Experimental Setup
+Benchmarks and Metrics.
+We evaluate closed-loop plan-
+ning on NAVSIMv2 (Dauner et al. 2024; Cao et al. 2025),
+which reports the Extended Predictive Driver Model Score
+(EPDMS). EPDMS aggregates no at-fault collision (NC),
+drivable-area compliance (DAC), driving-direction compli-
+ance (DDC), traffic-light compliance (TLC), ego progress
+(EP), time-to-collision (TTC), lane keeping (LK), history
+comfort (HC), and extended comfort (EC), where the compli-
+ance terms act as multiplicative safety penalties. To test cross-
+dataset generalization, we further evaluate on nuScenes (Cae-
+sar et al. 2020) without target-domain fine-tuning. For
+nuScenes, we report L2 trajectory error and collision rate
+at 1s, 2s, 3s, and their averages. NAVSIMv1 and NAVSIMv2
+navhard results are reported in the Appendix.
+Implementation Details.
+Our planner uses H = 4 his-
+torical frames from six cameras: front-left, front, front-
+right, rear-right, rear, and rear-left. Each view is resized to
+448 × 224, and the six views are concatenated along the
+width dimension before being encoded by the frozen 3D
+causal VAE encoder from Wan2.2-TI2V-5B. Both historical
+observations and future-video targets are sampled at 2 Hz
+(a 0.5 s temporal interval). We adopt Wan2.2-5B as the DiT
+backbone (Peebles and Xie 2023). The model predicts 12
+future action tokens and is trained with 12-frame six-view
+future video latent supervision. We train on NAVSIM train-
+val for 10k iterations with AdamW, batch size 80, learning
+rate 10−4, and weight decay 10−2 on 16 H800 GPUs. We
+then fine-tune for 1k iterations with an effective batch size
+of 640 (gradient accumulation of 8 over a per-step batch of
+80) and a learning rate decayed from 10−5 to 10−6; each
+stage takes roughly one day on the 16 GPUs. All reported
+main results use two-step action-only inference. Future video
+tokens provide training-time supervision only. At inference,
+we remove the video branch and cache the observation prefix
+as key/value states.
+Main Results
+NAVSIMv2.
+As demonstrated in Table 1, SV-WAM
+achieves the best performance under the closed-loop
+NAVSIMv2 metric suite, outperforming recent end-to-end
+driving planners on the navtest split. We follow the evalu-
+ation setting of EponaV2 (Xu et al. 2026). The results for
+DriveVLA-W0 and DriveLaW are reproduced using their of-
+ficial code and checkpoints, while the remaining baseline
+results are taken from the corresponding papers or official
+leaderboard. SV-WAM achieves the best EPDMS of 91.0.
+These gains should not be attributed to surround-view in-
+put alone. The six-view observations provide complemen-
+tary side and rear context, while future-video co-training and
+the drivable-area regularizer further improve future-aware
+representation learning and road-boundary compliance, re-
+spectively, as analyzed in Table 3.
+nuScenes Zero-Shot Transfer.
+As shown in Table 2, we
+further evaluate zero-shot transfer to nuScenes. The upper
+block lists representative methods fine-tuned on nuScenes,
+whereas the lower block compares world-model planners
+without nuScenes fine-tuning. We directly evaluate the of-
+ficially released checkpoints of DriveVLA-W0 and PWM
+without further fine-tuning on NAVSIM or nuScenes. Un-
+der this setting, SV-WAM achieves the lowest average L2
+error of 0.89 m and collision rate of 0.16% among the zero-
+shot methods, while remaining competitive with several in-
+domain fine-tuned planners. This result provides encourag-
+ing evidence of cross-dataset transfer without target-domain
+supervision. Additional zero-shot qualitative results on in-
+house driving data are provided in the Appendix.
+Ablation Studies
+Training Components.
+Table 3 ablates the three ingredi-
+ents of the final model. All variants share the same C×6
+architecture and evaluation setup, differing only in the en-
+abled training components. Future-video co-training im-
+
+
+Method
+Ref.
+Input
+NC ↑DAC ↑DDC ↑TLC ↑EP ↑TTC ↑LK ↑HC ↑EC ↑EPDMS ↑
+ReCogDrive (Li et al. 2026c)
+ICLR’26
+C×1
+98.3
+95.2
+99.5
+99.8
+87.1
+97.5
+96.6
+98.3
+86.5
+83.6
+Epona † (Zhang et al. 2025)
+ICCV’25
+C×1
+97.1
+95.7
+99.3
+99.7
+88.6
+96.3
+97.0
+98.0
+67.8
+85.1
+DriveVLA-W0 † (Li et al. 2026b)
+ICLR’26
+C×1
+98.3
+95.0
+99.4
+99.9
+86.6
+97.8
+97.7
+98.4
+82.4
+86.7
+PWM † (Zhao et al. 2025)
+NeurIPS’25
+C×1
+98.8
+95.9
+99.4
+99.9
+86.4
+98.4
+97.6
+98.3
+85.3
+88.2
+DriveLaW † (Xia et al. 2026)
+CVPR’26
+C×1
+98.8
+96.9
+99.6
+99.8
+87.4
+98.3
+97.7
+98.4
+80.2
+88.9
+EponaV2 † (Xu et al. 2026)
+arXiv’26
+C×1
+98.5
+97.4
+99.5
+99.9
+87.9
+98.1
+97.7
+98.2
+77.4
+88.9
+Ours †
+–
+C×1
+98.4
+98.4
+99.1
+99.8
+85.5
+97.8
+95.9
+98.4
+86.5
+89.3
+AutoDrive-P3 (Ye et al. 2026b)
+ICLR’26
+C×3
+99.1
+97.4
+99.2
+99.8
+88.0
+98.7
+96.3
+98.3
+85.5
+89.9
+WoTE † (Li et al. 2025)
+ICCV’25
+C×3&L
+98.5
+96.8
+98.8
+99.8
+86.1
+97.9
+95.5
+98.3
+82.9
+87.7
+DiffusionDrive (Liao et al. 2025)
+CVPR’25
+C×3&L
+98.2
+96.2
+99.5
+99.8
+87.4
+97.3
+96.9
+98.4
+87.7
+88.2
+Ours †
+–
+C×3
+98.7
+99.1
+99.4
+99.8
+86.1
+98.1
+96.5
+98.4
+86.6
+90.5
+Ours †
+–
+C×6
+98.6
+98.8
+99.6
+99.9
+86.8
+98.3
+97.8
+98.4
+88.4
+91.0
+Table 1: Detailed closed-loop planning comparison on the NAVSIMv2 navtest split with human penalty enabled. Metrics are
+reported as percentages. C denotes camera input and L denotes LiDAR input; for example, C×1 is front-camera-only input,
+C×3 denotes three front-facing camera input, and C×6 denotes six-view surround-camera input. Bold and underlined values
+indicate the best and second-best results overall, respectively. † denotes WM-based methods.
+Method
+nuS. FT
+Ref
+Input
+L2 (m) ↓
+Collision Rate (%) ↓
+1s
+2s
+3s
+Avg.
+1s
+2s
+3s
+Avg.
+UniAD (Hu et al. 2023b)
+✓
+CVPR’23
+C×6
+0.48
+0.96
+1.65
+1.03
+0.05
+0.17
+0.71
+0.31
+VAD-Base (Jiang et al. 2023)
+✓
+ICCV’23
+C×6
+0.54
+1.15
+1.98
+1.22
+0.04
+0.39
+1.17
+0.53
+GenAD (Zheng et al. 2024b)
+✓
+ECCV’24
+C×6
+0.36
+0.83
+1.55
+0.91
+0.06
+0.23
+1.00
+0.43
+Doe-1 (Zheng et al. 2024c)
+✓
+arXiv’24
+C×1
+0.50
+1.18
+2.11
+1.26
+0.04
+0.37
+1.19
+0.53
+Epona † (Zhang et al. 2025)
+✓
+ICCV’25
+C×1
+0.61
+1.17
+1.98
+1.25
+0.01
+0.22
+0.85
+0.36
+DriveLaW † (Xia et al. 2026)
+✓
+CVPR’26
+C×1
+0.44
+1.10
+1.91
+1.15
+0.15
+0.10
+0.48
+0.24
+DriveVLA-W0 † (Li et al. 2026b)
+×
+ICLR’26
+C×1
+0.43
+1.26
+2.60
+1.43
+0.22
+0.66
+1.42
+0.77
+PWM † (Zhao et al. 2025)
+×
+NeurIPS’25
+C×1
+2.06
+3.91
+6.00
+3.99
+0.12
+0.15
+0.86
+0.36
+Ours †
+×
+–
+C×6
+0.31
+0.80
+1.57
+0.89
+0.07
+0.13
+0.27
+0.16
+Table 2: End-to-end motion planning performance on nuScenes. “nuS. FT” marks whether the method is fine-tuned on nuScenes.
+DriveVLA-W0 and PWM are evaluated zero-shot on nuScenes using their officially released checkpoints, without additional
+fine-tuning. Results for additional methods are provided in the Appendix. Bold and underlined values indicate the best and
+second-best results, respectively. † denotes WM-based methods.
+Video Sup.
+DAC-reg
+FT
+DAC ↑
+EPDMS ↑
+×
+×
+×
+93.4
+83.1
+✓
+×
+×
+95.6
+87.7
+✓
+✓
+×
+98.6
+90.1
+✓
+✓
+✓
+98.8
+91.0
+Table 3: Component ablation on NAVSIMv2 navtest. Video
+Sup. denotes future-video supervision co-training, DAC-reg
+denotes the drivable-area regularizer, and FT denotes final
+fine-tuning.
+proves EPDMS from 83.1 to 87.7, showing that grounding
+actions in future visual dynamics helps even though the video
+branch is removed at deployment. Adding the DAC regular-
+ization raises EPDMS to 90.1 and DAC from 95.6 to 98.6,
+indicating fewer drivable-area violations. Final fine-tuning
+yields 91.0 EPDMS.
+Action-Centered Causal Mask and Inference Steps.
+Ta-
+ble 4 jointly studies the action-centered causal mask and
+the number of inference steps. For a controlled comparison,
+the masked and unmasked variants are trained with identical
+model architectures, training configurations, and hyperpa-
+rameters, differing only in the attention mask. Without the
+mask, action tokens can read noisy future-video tokens dur-
+ing joint generation. Increasing the steps from 2 to 10 im-
+proves EPDMS from 87.3 to 88.2, consistent with more com-
+plete future-video denoising reducing the noise that propa-
+gates into action prediction. With the causal mask, action
+tokens no longer depend on future-video tokens; two steps
+attain the best EPDMS of 91.0, while 5 and 10 steps give 90.9
+and 90.8. Additional refinement is therefore unnecessary for
+the decoupled action path, and its small decline likely reflects
+minor iterative perturbations of an already converged action
+trajectory rather than useful correction from the uncertain
+future-video branch. Moreover, we ablate the future-video
+branch at inference under the causal mask and observe un-
+changed planning performance with or without it.
+Surround-View Coverage.
+The controlled variants in Ta-
+ble 1 share the same architecture and training schedule. In-
+creasing camera coverage consistently improves EPDMS,
+with the full six-view setting achieving the best final score.
+The improvements in DDC, LK, EC, and EPDMS indicate
+that wider visual coverage benefits overall planning quality
+
+
+Front Left
+Rear Left
+Front
+Front Right
+Rear
+Rear Right
+Figure 5: Qualitative comparison in a challenging turning scenario from NAVSIMv2. Left: current six-camera observations.
+Right: the corresponding BEV visualization. SV-WAM predicts a trajectory that more closely follows the ground truth and better
+aligns with the road geometry than DriveLaW and DriveVLA-W0.
+Causal Mask
+Steps
+Input
+NC ↑
+DAC ↑
+DDC ↑
+TLC ↑
+EP ↑
+TTC ↑
+LK ↑
+HC ↑
+EC ↑
+EPDMS ↑
+×
+2
+C×6
+97.4
+96.6
+99.0
+99.7
+87.8
+96.8
+97.0
+98.3
+86.0
+87.3
+×
+5
+C×6
+97.6
+96.8
+99.2
+99.7
+87.7
+96.9
+97.5
+98.3
+87.3
+87.9
+×
+10
+C×6
+97.7
+96.9
+99.3
+99.7
+87.6
+97.0
+97.6
+98.3
+87.3
+88.2
+✓
+2
+C×6
+98.6
+98.8
+99.6
+99.9
+86.8
+98.3
+97.8
+98.4
+88.4
+91.0
+✓
+5
+C×6
+98.6
+98.6
+99.6
+99.9
+86.8
+98.4
+97.9
+98.4
+88.4
+90.9
+✓
+10
+C×6
+98.6
+98.5
+99.7
+99.8
+86.9
+98.2
+97.9
+98.4
+88.4
+90.8
+Table 4: Ablation on the causal mask and inference steps on NAVSIMv2 navtest. Bold values indicate the best results.
+and several safety-related submetrics. This trend is consis-
+tent with the motivation for surround-view inputs, as side
+and rear observations provide complementary context that is
+unavailable from a single front camera.
+Efficiency Analysis
+Figure 1 summarizes the efficiency–performance trade-off
+against recent world-model-based planners. Table 5 com-
+pares their online trajectory-output latency on a single H20
+GPU. The timing starts from preprocessed inputs to final
+trajectory. For the compared methods, we use official code,
+released checkpoints, and default inference configurations.
+All methods use batch size 1 and bf16 where supported;
+30 samples remain after 5 warm-up samples. Despite us-
+ing six cameras, SV-WAM achieves the lowest latency at
+341.6 ± 2.1 ms. Removing the action-centered causal mask
+requires the future-video branch to remain active at infer-
+ence, increasing the trajectory-output latency to 848.0 ± 1.8
+ms, with optional video decoding excluded in both cases.
+The full measurement protocol and optional video-rendering
+costs are provided in the Appendix.
+Qualitative Analysis
+Figure 5 compares SV-WAM with DriveLaW and DriveVLA-
+W0 in a challenging turning scenario. Benefiting from the
+richer spatial context provided by six-view observations and
+the drivable-area compliance regularizer, SV-WAM predicts
+a trajectory that more closely follows the ground-truth path
+and remains within the drivable corridor, demonstrating
+stronger planning robustness in complex maneuvers. Addi-
+tional qualitative comparisons across diverse driving scenar-
+Method
+Vis. Enc.
+Core Gen.
+Other
+Total (ms) ↓
+mean±std
+Epona
+725.4
+415.2
+8.2
+1148.8±4.5
+DriveLaW
+459.7
+663.7
+259.9
+1383.3±19.7
+PWM
+210.2
+336.0
+6.1
+552.3±5.4
+DriveVLA-W0
+76.6
+369.0
+69.3
+514.9±3.8
+Ours (w/o mask)
+438.4
+392.5
+17.1
+848.0±1.8
+Ours
+174.7
+151.4
+15.5
+341.6±2.1
+Table 5: Online trajectory-output latency comparison among
+WM-based planning methods on a single NVIDIA H20 GPU.
+Vis. Enc., Core Gen., and Other denote visual tokenization,
+iterative backbone generation, and remaining pipeline over-
+head, respectively. Component-wise values are means in mil-
+liseconds, while total latencies are reported as mean ± stan-
+dard deviation. Optional video rendering and future-video
+VAE decoding are excluded.
+ios are provided in the Appendix.
+Conclusion
+We present SV-WAM, an efficient surround-view world-
+action model for end-to-end autonomous driving. The key
+insight is that six-camera context should be retained for re-
+liable planning, whereas future video prediction can be used
+as training-time supervision and removed from inference.
+SV-WAM follows this insight with an action-centered causal
+mask that enables joint denoising of future actions and future-
+video latents while blocking the direct attention dependency
+of action tokens on future-video tokens. Future-video super-
+vision still updates the shared model parameters, while the
+
+
+video branch can be removed at inference, yielding an effi-
+cient action-only planner with full surround-view coverage.
+We further introduce a differentiable drivable area compli-
+ance regularizer to improve road compliance. Experiments
+on NAVSIMv2 and nuScenes validate the effectiveness and
+efficiency of the proposed design.
+References
+Caesar, H.; Bankiti, V.; Lang, A. H.; Vora, S.; Liong, V. E.;
+Xu, Q.; Krishnan, A.; Pan, Y.; Baldan, G.; and Beijbom,
+O. 2020. nuScenes: A Multimodal Dataset for Autonomous
+Driving. In Proceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition, 11621–11631.
+Cao, W.; Hallgarten, M.; Li, T.; Dauner, D.; Gu, X.; Wang,
+C.; Miron, Y.; Aiello, M.; Li, H.; Gilitschenski, I.; Ivanovic,
+B.; Pavone, M.; Geiger, A.; and Chitta, K. 2025. Pseudo-
+Simulation for Autonomous Driving. In Conference on Robot
+Learning.
+Chen, Y.; Wang, Y.; and Zhang, Z. 2025. DrivingGPT: Uni-
+fying Driving World Modeling and Planning with Multi-
+modal Autoregressive Transformers. In Proceedings of the
+IEEE/CVF International Conference on Computer Vision.
+Dauner, D.; Hallgarten, M.; Li, T.; Weng, X.; Huang, Z.;
+Yang, Z.; Li, H.; Gilitschenski, I.; Ivanovic, B.; Pavone, M.;
+Geiger, A.; and Chitta, K. 2024.
+NAVSIM: Data-Driven
+Non-Reactive Autonomous Vehicle Simulation and Bench-
+marking.
+In Advances in Neural Information Processing
+Systems.
+Du, Y.; Yang, S.; Dai, B.; Dai, H.; Nachum, O.; Tenenbaum,
+J.; Schuurmans, D.; and Abbeel, P. 2023. Learning Universal
+Policies via Text-Guided Video Generation. In Advances in
+Neural Information Processing Systems.
+Feng, L.; Gao, Y.; Zablocki, E.; Li, Q.; Li, W.; Liu, S.; Cord,
+M.; and Alahi, A. 2026. RAP: 3D Rasterization Augmented
+End-to-End Planning. In The Fourteenth International Con-
+ference on Learning Representations.
+Gao, S.; Yang, J.; Chen, L.; Chitta, K.; Qiu, Y.; Geiger, A.;
+Zhang, J.; and Li, H. 2024. Vista: A Generalizable Driving
+World Model with High Fidelity and Versatile Controllabil-
+ity. In Advances in Neural Information Processing Systems.
+Hu, A.; Russell, L.; Yeo, H.; Murez, Z.; Fedoseev, G.;
+Kendall, A.; Shotton, J.; and Corrado, G. 2023a. GAIA-1:
+A Generative World Model for Autonomous Driving. arXiv
+preprint arXiv:2309.17080.
+Hu, S.; Chen, L.; Wu, P.; Li, H.; Yan, J.; and Tao, D. 2022.
+ST-P3: End-to-end Vision-based Autonomous Driving via
+Spatial-Temporal Feature Learning. In European Conference
+on Computer Vision.
+Hu, Y.; Yang, J.; Chen, L.; Li, K.; Sima, C.; Zhu, X.; Chai, S.;
+Du, S.; Lin, T.; et al. 2023b. Planning-oriented Autonomous
+Driving. In Proceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition.
+Jiang, B.; Chen, S.; Xu, Q.; Liao, B.; Chen, J.; Zhou, H.;
+Zhang, Q.; Liu, W.; Huang, C.; and Wang, X. 2023. VAD:
+Vectorized Scene Representation for Efficient Autonomous
+Driving. In Proceedings of the IEEE/CVF International Con-
+ference on Computer Vision.
+Kim, J.; Oh, J.; Yu, S.; Shin, H.; Kwak, D.; and Choi,
+J. W. 2026. SafeDrive: Fine-Grained Safety Reasoning for
+End-to-End Driving in a Sparse World. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, 24854–24864.
+Kong, J.; Pfeiffer, M.; Schildbach, G.; and Borrelli, F. 2015.
+Kinematic and Dynamic Vehicle Models for Autonomous
+Driving Control Design. In IEEE Intelligent Vehicles Sym-
+posium (IV).
+Li, P.; Zheng, Y.; Wang, Y.; Wang, H.; Zhao, H.; Liu, J.; Zhan,
+X.; Zhan, K.; and Lang, X. 2026a. Discrete Diffusion for
+Reflective Vision-Language-Action Models in Autonomous
+Driving.
+In The Fourteenth International Conference on
+Learning Representations.
+Li, Y.; Shang, S.; Liu, W.; Zhan, B.; Wang, H.; Wang, Y.;
+Chen, Y.; Wang, X.; An, Y.; Tang, C.; Hou, L.; Fan, L.; and
+Zhang, Z. 2026b. DriveVLA-W0: World Models Amplify
+Data Scaling Law in Autonomous Driving. In The Fourteenth
+International Conference on Learning Representations.
+Li, Y.; Wang, Y.; Liu, Y.; He, J.; Fan, L.; and Zhang, Z. 2025.
+End-to-End Driving with Online Trajectory Evaluation via
+BEV World Model. In Proceedings of the IEEE/CVF Inter-
+national Conference on Computer Vision, 27137–27146.
+Li, Y.; Xiong, K.; Guo, X.; Li, F.; Yan, S.; Xu, G.; Zhou, L.;
+Chen, L.; Sun, H.; Wang, B.; Ma, K.; Chen, G.; Ye, H.; Liu,
+W.; and Wang, X. 2026c. ReCogDrive: A Reinforced Cog-
+nitive Framework for End-to-End Autonomous Driving. In
+The Fourteenth International Conference on Learning Rep-
+resentations.
+Liao, B.; Chen, S.; Yin, H.; Jiang, B.; Wang, C.; Yan, S.;
+Zhang, X.; Li, X.; Zhang, Y.; Zhang, Q.; et al. 2025. Diffu-
+sionDrive: Truncated Diffusion Model for End-to-End Au-
+tonomous Driving. In Proceedings of the IEEE/CVF Confer-
+ence on Computer Vision and Pattern Recognition, 12037–
+12047.
+Lipman, Y.; Chen, R. T. Q.; Ben-Hamu, H.; Nickel, M.; and
+Le, M. 2023. Flow Matching for Generative Modeling. In
+International Conference on Learning Representations.
+Liu, M.; Zhang, D.; Liu, J.; Cui, J.; Xie, H.; Chen, G.; Ye,
+H.; Yang, M. Y.; Nex, F.; and Cheng, H. 2026. DriveVA:
+Video Action Models are Zero-Shot Drivers. arXiv preprint
+arXiv:2604.04198.
+Liu, X.; Gong, C.; and Liu, Q. 2023. Flow Straight and Fast:
+Learning to Generate and Transfer Data with Rectified Flow.
+In International Conference on Learning Representations.
+Nguyen, L.; Fauth, M.; Jaeger, B.; Dauner, D.; Igl, M.;
+Geiger, A.; and Chitta, K. 2026. LEAD: Minimizing Learner-
+Expert Asymmetry in End-to-End Driving. In Proceedings
+of the IEEE/CVF Conference on Computer Vision and Pat-
+tern Recognition.
+Peebles, W.; and Xie, S. 2023. Scalable Diffusion Models
+with Transformers. In IEEE/CVF International Conference
+on Computer Vision.
+Prakash, A.; Chitta, K.; and Geiger, A. 2021. Multi-Modal
+Fusion Transformer for End-to-End Autonomous Driving.
+In Proceedings of the IEEE/CVF Conference on Computer
+Vision and Pattern Recognition, 7077–7087.
+
+
+Tian, X.; Gu, J.; Li, B.; Liu, Y.; Wang, Y.; Zhao, Z.; Zhan, K.;
+Jia, P.; Lang, X.; and Zhao, H. 2024. DriveVLM: The Conver-
+gence of Autonomous Driving and Large Vision-Language
+Models. In Conference on Robot Learning.
+Tong, W.; Sima, C.;Wang,T.;Chen,L.; Wu,S.;Deng,H.;Gu,
+Y.; Lu, L.; Luo, P.; and Lin, D. 2023. Scene as Occupancy.
+In Proceedings of the IEEE/CVF International Conference
+on Computer Vision.
+Wan Team. 2025. Wan2.2: Open and Advanced Large-Scale
+Video Generative Models. https://github.com/Wan-Video/
+Wan2.2. Wan2.2-TI2V-5B model and VAE.
+Wang, J.; Li, G.; Huang, Z.; Dang, C.; Ye, H.; Han, Y.;
+and Chen, L. 2026a.
+VGGDrive: Empowering Vision-
+Language Models with Cross-View Geometric Grounding
+for Autonomous Driving. In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition,
+10954–10964.
+Wang, J.; Zheng, Y.; Liu, X.; Xing, Z.; Li, P.; Ma, K.; Ye, H.;
+Chen, G.; Li, G.; Chen, L.; Xia, Z.; and Zhang, Q. 2026b.
+MeanFuser: Fast One-Step Multi-Modal Trajectory Genera-
+tion and Adaptive Reconstruction via MeanFlow for End-to-
+End Autonomous Driving. In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition,
+17884–17893.
+Wang, X.; Zhu, Z.; Huang, G.; Chen, X.; Zhu, J.; and Lu,
+J. 2024. DriveDreamer: Towards Real-world-driven World
+Models for Autonomous Driving. In European Conference
+on Computer Vision.
+Xia, T.; Li, Y.; Zhou, L.; Yao, J.; Xiong, K.; Sun, H.; Wang,
+B.; Ma, K.; Chen, G.; Ye, H.; Liu, W.; and Wang, X. 2026.
+DriveLaW: Unifying Planning and Video Generation in a
+Latent Driving World.
+In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition,
+39701–39712.
+Xu, J.; Zhong, Z.; Shu, Z.; Jia, M.; Li, M.; Bian, J.-W.;
+Zhang, Q.; Zhang, K.; Xie, J.; Yang, J.; and Yin, W. 2026.
+EponaV2: Driving World Model with Comprehensive Future
+Reasoning. arXiv preprint arXiv:2605.14696.
+Yang, P.; Lu, B.; Xia, Z.; Han, C.; Gao, Y.; Zhang, T.; Zhan,
+K.; Lang, X.; Zheng, Y.; and Zhang, Q. 2026. WorldRFT: La-
+tent World Model Planning with Reinforcement Fine-Tuning
+for Autonomous Driving. In Proceedings of the AAAI Con-
+ference on Artificial Intelligence, volume 40, 11649–11657.
+Ye, A.; Wang, B.; Ni, C.; Huang, G.; Zhao, G.; Li, H.; Li,
+H.; Li, J.; Lv, J.; Liu, J.; Cao, M.; Li, P.; Deng, Q.; Mei, W.;
+Wang, X.; Chen, X.; Zhou, X.; Wang, Y.; Chang, Y.; Li, Y.;
+Zhou, Y.; Ye, Y.; Liu, Z.; and Zhu, Z. 2026a. GigaWorld-
+Policy: An Efficient Action-Centered World–Action Model.
+arXiv preprint arXiv:2603.17240.
+Ye, Y.; Zhang, Z.; Lin, J.; Sun, S.; Peng, C.; and Gao,
+W. 2026b.
+AutoDrive-P3: Unified Chain of Perception-
+Prediction-Planning
+Thought
+via
+Reinforcement
+Fine-
+Tuning.
+In The Fourteenth International Conference on
+Learning Representations.
+Yuan, T.; Dong, Z.; Liu, Y.; and Zhao, H. 2026. Fast-WAM:
+Do World Action Models Need Test-time Future Imagina-
+tion? arXiv preprint arXiv:2603.16666.
+Zhang, J.; Fu, Z.; Xu, Z.; Dai, W.; Liu, Q.; and Wang, Y.
+2026. ResWorld: Temporal Residual World Model for End-
+to-End Autonomous Driving. In International Conference
+on Learning Representations.
+Zhang, K.; Tang, Z.; Hu, X.; Pan, X.; Guo, X.; Liu, Y.;
+Huang, J.; Yuan, L.; Zhang, Q.; Long, X.-X.; Cao, X.; and
+Yin, W. 2025. Epona: Autoregressive Diffusion World Model
+for Autonomous Driving. In Proceedings of the IEEE/CVF
+International Conference on Computer Vision.
+Zhao, Z.; Fu, T.; Wang, Y.; Wang, L.; and Lu, H. 2025.
+From Forecasting to Planning: Policy World Model for Col-
+laborative State-Action Prediction. In Advances in Neural
+Information Processing Systems.
+Zheng, W.; Song, R.; Guo, X.; Chen, C.; Lu, L.; and Chen, L.
+2024a. Driving in the Occupancy World: Vision-Centric 4D
+Occupancy Forecasting and Planning via World Models for
+Autonomous Driving. In European Conference on Computer
+Vision.
+Zheng, W.; Song, R.; Guo, X.; Chen, C.; Lu, L.; and Chen, L.
+2024b. GenAD: Generative End-to-End Autonomous Driv-
+ing. In European Conference on Computer Vision.
+Zheng, W.; Xia, Z.; Huang, Y.; Zuo, S.; Zhou, J.; and Lu,
+J. 2024c. Doe-1: Closed-Loop Autonomous Driving with
+Large World Model. arXiv preprint arXiv:2412.09627.
+Zheng, Y.; Yang, P.; Xing, Z.; Zhang, Q.; Zheng, Y.; Gao,
+Y.; Li, P.; Zhang, T.; Xia, Z.; Jia, P.; Lang, X.; and Zhao, D.
+2025. World4Drive: End-to-End Autonomous Driving via
+Intention-Aware Physical Latent World Model. In Proceed-
+ings of the IEEE/CVF International Conference on Computer
+Vision, 28632–28642.
+Zhou, X.; Han, X.; Yang, F.; Ma, Y.; Tresp, V.; and Knoll, A.
+2026. OpenDriveVLA: Towards End-to-End Autonomous
+Driving with Large Vision Language Action Model. In Pro-
+ceedings of the AAAI Conference on Artificial Intelligence,
+volume 40, 13782–13790.
+Zhou, Z.; Cai, T.; Zhao, S. Z.; Zhang, Y.; Huang, Z.; Zhou,
+B.; and Ma, J. 2025. AutoVLA: A Vision-Language-Action
+Model for End-to-End Autonomous Driving with Adaptive
+Reasoning and Reinforcement Fine-Tuning. In Advances in
+Neural Information Processing Systems.
+
+
+Implementation Details
+Architecture.
+SV-WAM
+builds
+on
+the
+Wan2.2-5B
+diffusion-transformer (DiT) video backbone and the 3D
+causal VAE encoder from Wan2.2-TI2V-5B. The four-frame
+six-view history is encoded by the VAE after the six views at
+each timestamp are concatenated along the width dimension
+into a single mosaic, and the resulting latents are converted
+into video tokens by a 3D convolutional patch embedding fol-
+lowed by flattening. Ego states and actions are projected into
+the transformer hidden space by lightweight MLP tokenizers,
+and a linear head maps the action token outputs back to the
+flow-velocity space. The transformer keeps the Wan2.2-5B
+DiT configuration unchanged—30 blocks and ≈5B param-
+eters, with the original hidden width and head count—and
+the only additions are the small action and ego-state MLP
+tokenizers, whose parameter count is negligible.
+Inputs and Outputs.
+Each sample uses H = 4 history
+frames from the six cameras (front-left, front, front-right,
+rear-right, rear, rear-left), each resized to 448×224. The ego
+state at each history step is
+st = [c1
+t, c2
+t, c3
+t, c4
+t, vx
+t , vy
+t , ax
+t , ay
+t ] ∈R8,
+(20)
+where ct is the four-dimensional one-hot driving command.
+The command entries remain in their native {0, 1} space. We
+min–max normalize the continuous components to [−1, 1]
+using statistics computed on the official NAVSIM training
+split. In the order (vx, vy, ax, ay), the extrema are
+smin = (−2.0, −0.5, −5.1, −5.4),
+smax = (20.4, 0.5, 3.6, 5.6).
+(21)
+Each continuous component is transformed as ˜s = 2(s −
+smin)/(smax −smin) −1 and clipped to [−1, 1].
+Unlike the ego state, the action targets are not normal-
+ized with dataset statistics. Inspired by the coordinate-wise
+bounded normalization of Epona (Zhang et al. 2025), we use
+fixed ranges adapted to our stepwise 0.5 s ego-relative action
+representation. Each action is ak = (∆xk, ∆yk, ∆ψk), with
+nominal bounds
+amin = (0, −0.5, −8◦),
+amax = (8, 0.5, 8◦),
+(22)
+where the translational components are in meters. We apply
+˜a = 2(a−amin)/(amax−amin)−1, without clipping values
+outside the nominal range. The model predicts K = 12 future
+action tokens, which are denormalized and accumulated in
+SE(2); the first eight tokens form the standard 4 s NAVSIM
+trajectory. During training, the model additionally denoises
+12 future six-view video latents.
+Training.
+We train on the official NAVSIM trainval split
+for 10k iterations with AdamW (batch size 80, learning rate
+10−4, weight decay 10−2) on 16 H800 GPUs, then fine-tune
+for 1k iterations with an effective batch size of 640 (gradient
+accumulation of 8 over a per-step batch of 80) and a learning
+rate decayed from 10−5 to 10−6. Each stage takes roughly
+one day (≈24h) on the 16 H800 GPUs. We use rectified-
+flow training with Euler sampling; the full ≈5B model is
+trainable. The flow matching loss uses λact : λvid = 1 :
+1. The implementation samples a uniform base time u and
+applies the shifted flow schedule
+t =
+αu
+1 + (α −1)u,
+u ∼U(0, 1),
+(23)
+where the flow-shift coefficient is set to α = 5.0 for both ac-
+tion and future-video flow matching. The drivable area reg-
+ularizer uses λdac = 0.01, safety margin m = 0.2, softplus
+temperature β = 0.2, and log-mean-exp aggregation tem-
+perature ρ = 0.1. The signed distance field is constructed
+on a local grid x ∈[−20, 80] m, y ∈[−40, 40] m at 0.5 m
+resolution.
+Drivable Area Regularization Details.
+The predicted
+2 Hz action sequence specifies a geometric reference rather
+than the trajectory attained by a tracking controller. We there-
+fore roll it out with a linear quadratic regulator (LQR) and
+a kinematic bicycle model (Kong et al. 2015), following
+NAVSIM’s official tracker (Dauner et al. 2024). LQR is a
+finite-horizon feedback controller that balances reference-
+tracking accuracy against control effort. In its standard form,
+it selects a control sequence according to
+u⋆
+0:H−1 = arg min
+u0:H−1
+H−1
+X
+h=0
+ e⊤
+h Qeh + u⊤
+h Ruh
+
+,
+(24)
+where eh denotes the tracking-error state and uh denotes the
+control. In our rollout, the predicted poses at 0.5 s intervals
+are first interpolated to the 0.1 s simulation grid. The longi-
+tudinal controller tracks the reference velocity through ac-
+celeration commands, while the lateral LQR uses lateral dis-
+placement, heading, and steering-angle errors to determine
+the steering-rate command. First-order actuator dynamics are
+applied before propagating the 11-dimensional vehicle state
+with the kinematic bicycle model. We simulate Nq = 60
+poses with an LQR horizon of 10 steps.
+NAVSIM’s official tracker, simulator, and drivable-area
+routines operate on NumPy arrays and therefore cannot pre-
+serve gradients from the compliance objective to the action
+generator. We retain the state definition, controller structure,
+vehicle geometry, and drivable-map semantics of the official
+implementation, but reimplement the rollout and footprint
+queries as batched PyTorch tensor operations. Specifically,
+we obtain the binary drivable region using the official PDM-
+DrivableMap, convert it into an ego-centric signed-distance
+tensor, and evaluate the four vehicle-corner points at every
+simulated pose by differentiable bilinear interpolation. Out-
+of-bound samples are assigned negative distances. The soft-
+plus margin penalty and log-mean-exp aggregation described
+in the main paper are then evaluated entirely in PyTorch, al-
+lowing Ldac to backpropagate through the LQR rollout to
+the predicted actions.
+Inference.
+At deployment, the future-video branch is re-
+moved. The observation prefix is encoded once and its
+key/value states are cached, and the 12 action tokens are
+denoised in two flow steps. When future-video generation is
+needed for analysis, noisy future-video latent tokens can be
+appended to the input and denoised by the same model, after
+which the predicted latents are decoded into future video. Be-
+cause the action-centered causal mask prevents action tokens
+
+
+from attending to future-video tokens, this optional video
+branch does not affect the action path. We empirically verify
+that, under the same number of inference steps, the masked
+model produces identical trajectories up to numerical preci-
+sion with and without future-video tokens. This observation
+is consistent with the causal masking design and supports
+action-only deployment. The main-paper latency numbers
+are measured on a single NVIDIA H20 with batch size 1
+and bf16 precision; additional details are provided in the
+inference-efficiency section.
+Dataset and Metric Details
+NAVSIM
+Overview.
+The NAVSIM benchmark family is built on
+OpenScene, a 2 Hz subset of the nuPlan driving logs with ap-
+proximately 120 hours of real-world driving data. OpenScene
+provides the standard trainval, test, and mini splits. The train-
+val split contains 14 GB of log files and more than 2000 GB
+of sensor data, the test split contains 1 GB of log files and
+217 GB of sensor data, and the mini split contains 1 GB of
+log files and 151 GB of sensor data. NAVSIM further defines
+filtered planning splits over these data to emphasize non-
+trivial driving scenes. Specifically, navtest is derived from
+test and is used for standardized NAVSIMv1 evaluation. In
+our experiments, we train SV-WAM on the NAVSIM trainval
+data and report the main results on the NAVSIMv2 (Dauner
+et al. 2024; Cao et al. 2025) navtest split.
+NAVSIMv2 extends the original NAVSIM benchmark
+with pseudo-simulation (Cao et al. 2025). Instead of eval-
+uating only the logged observation at the initial state,
+NAVSIMv2 uses pre-generated synthetic observations to ap-
+proximate shifted future states that a planner may encounter
+after deviating from the expert trajectory. This design al-
+lows the benchmark to evaluate error recovery and causal-
+confusion sensitivity while avoiding expensive sequential
+sensor rendering. Besides the main navtest evaluation, we
+also report results on the harder navhard two-stage split,
+which contains real Stage 1 observations and synthetic Stage
+2 observations and applies a two-stage evaluation protocol
+with human penalty. Finally, we include NAVSIMv1 navtest
+results under the original PDMS metric to connect our results
+with earlier NAVSIM-based work.
+Data Processing.
+Each raw camera view in NAVSIM has a
+resolution of 1920×1080 pixels. We first resize each selected
+camera view to 455 × 256 pixels and then center-crop it
+to 448 × 224 pixels. At each timestamp, the six processed
+camera views are arranged in the fixed order described above
+and concatenated along the width dimension into a single
+surround-view mosaic. We use four history frames sampled
+at 2 Hz, corresponding to a temporal interval of 0.5 s.
+NAVSIMv2 Metric (EPDMS).
+The Extended Predictive
+Driver Model Score (EPDMS) aggregates multiplicative
+safety penalties and weighted quality terms,
+EPDMS = NC · DAC · DDC · TLC
+|
+{z
+}
+multiplicative safety
+· 5(EP+TTC) + 2(LK+HC+EC)
+16
+.
+(25)
+Here the four safety terms act as multiplicative gates: NC
+(no at-fault collision) penalizes collisions for which the ego
+is responsible, DAC (drivable-area compliance) checks that
+the rolled-out vehicle footprint stays inside the drivable area,
+DDC (driving-direction compliance) penalizes wrong-way
+or illegal-direction motion, and TLC (traffic-light compli-
+ance) penalizes running red lights. The remaining terms are
+quality scores combined as a weighted average: EP (ego
+progress) measures route progress relative to a privileged
+reference, TTC (time-to-collision) rewards keeping a safe
+temporal margin to other agents, LK (lane keeping) mea-
+sures staying within the lane, and HC (history comfort) and
+EC (extended comfort) bound acceleration and jerk for ride
+comfort. Because NC, DAC, DDC, and TLC enter multiplica-
+tively, a single violation (for example, leaving the drivable
+area) zeroes the entire scenario score; this is exactly the fail-
+ure mode our drivable-area regularizer targets. The navtest
+split contains 12,146 scenarios and the navhard split 450
+scenarios (official sizes).
+NAVSIMv2 navhard.
+The navhard split (Table 7) is a
+harder NAVSIMv2 setting that targets interactive, safety-
+critical situations. It uses a two-stage evaluation: the planner
+is first scored on the recorded scene and then re-scored un-
+der more challenging conditions, and an additional human-
+behavior penalty is applied. Because the second stage stresses
+reactive behavior, navhard scores are markedly lower than
+navtest for all methods, so the split mainly measures robust-
+ness in difficult scenes.
+NAVSIMv1 metric (PDMS).
+The NAVSIMv1 results in
+Table 6 use the Predictive Driver Model Score (PDMS), the
+predecessor of EPDMS,
+PDMS =
+NC · DAC
+|
+{z
+}
+multiplicative safety
+·5 EP + 5 TTC + 2 C
+12
+,
+(26)
+where NC and DAC are multiplicative safety terms and EP,
+TTC, and C (comfort) form a weighted average. Compared
+with EPDMS, PDMS omits the additional v2 terms (DDC,
+TLC, LK) and does not split comfort into history and ex-
+tended comfort.
+nuScenes
+Overview.
+nuScenes (Caesar et al. 2020) contains 1000
+driving scenes of roughly 20 s each, collected in Boston and
+Singapore with a synchronized six-camera surround rig and
+keyframe annotations at 2 Hz. It spans diverse urban traffic,
+lighting, and weather conditions, which makes it a strong
+testbed for cross-dataset generalization. We use it purely for
+evaluation and never train or fine-tune on it.
+Zero-Shot Protocol.
+For zero-shot evaluation, the com-
+pared world-model planners, including DriveVLA-W0,
+PWM, and SV-WAM, are trained only on NAVSIM and
+evaluated directly on nuScenes without target-domain fine-
+tuning. We evaluate on the nuScenes validation split using
+the standard open-loop planning protocol. For SV-WAM, we
+use the four most recent keyframes at 2 Hz from all six cam-
+eras. Each native RGB image has a resolution of 1600 × 900
+
+
+pixels. We bilinearly resize each image to 455 × 256 pixels
+and then center-crop it to 448 × 224 pixels, matching the
+deterministic preprocessing used during NAVSIM training.
+The six processed views are concatenated along the width
+dimension in the same fixed order. The provided planning
+command is mapped to our four-way command encoding,
+while ego velocity and acceleration are normalized using
+the NAVSIM training statistics. We neither compute target-
+domain normalization statistics nor perform any parameter
+adaptation on nuScenes.
+Metrics.
+Following the standard nuScenes open-loop plan-
+ning evaluation used in UniAD (Hu et al. 2023b) and sub-
+sequent planning works (Jiang et al. 2023), we report L2
+displacement error and collision rate at 1 s, 2 s, and 3 s. The
+L2 displacement error measures the Euclidean distance be-
+tween the predicted ego position and the ground-truth ego
+position at each future horizon, in meters. The collision rate
+measures the percentage of predicted trajectories that collide
+with annotated scene agents within each evaluation horizon.
+We also report the average L2 error and average collision
+rate over the three horizons.
+Additional Quantitative Results
+We report three comparisons omitted from the main pa-
+per for space: the NAVSIMv1 benchmark (Table 6), the
+harder NAVSIMv2 navhard split (Table 7), and the com-
+plete nuScenes comparison with older in-domain baselines
+(Table 8).
+NAVSIMv1.
+On the NAVSIMv1 PDMS benchmark (Ta-
+ble 6), SV-WAM reaches 90.2 PDMS, outperforming Driv-
+eLaW (89.1), PWM (88.1), and Epona (86.2), while achiev-
+ing 98.6 DAC. These results further support the effectiveness
+of the proposed planner and drivable-area regularization.
+NAVSIMv2 navhard.
+On the harder navhard split (Ta-
+ble 7), which combines a two-stage evaluation with a human-
+behavior penalty, SV-WAM reaches 36.1 EPDMS, tying
+EponaV2 and ranking behind RAP (39.6) among the com-
+pared methods. It also achieves 94.9 first-stage DAC and
+strong extended-comfort scores (EC, 84.4 and 80.1 across
+the two stages), indicating robust behavior under the more
+challenging reactive conditions.
+nuScenes (full).
+Table 8 extends the main nuScenes com-
+parison with older in-domain baselines (ST-P3, OccNet, Oc-
+cWorld, VAD-Tiny). Although SV-WAM is evaluated zero-
+shot, its average L2 (0.89 m) and collision rate (0.16%)
+are competitive with, and on average better than, several
+nuScenes-fine-tuned baselines, indicating that the surround-
+view world-action representation transfers across datasets.
+Because the open-loop nuScenes L2/collision metric is
+known to be sensitive to ego-status shortcuts, we treat this as
+a cross-dataset sanity check rather than a headline result.
+Additional Ablations
+Unless varied, all ablations use two denoising steps, twelve
+action tokens, and six-view (C×6) input on NAVSIMv2
+navtest.
+Number of Action Tokens.
+Table 9 evaluates the sensitiv-
+ity of SV-WAM to the number of predicted action tokens. Us-
+ing eight tokens shortens the prediction horizon and slightly
+reduces EPDMS, while increasing the number to sixteen in-
+troduces additional long-horizon uncertainty. Performance
+remains stable across the tested settings, with twelve action
+tokens yielding the highest EPDMS in this sensitivity analy-
+sis. We use twelve action tokens in all main experiments.
+Training-Side Hyperparameters.
+Table 10 reports sen-
+sitivity analyses for the drivable-area regularization weight
+and the effective fine-tuning batch size. EPDMS remains sta-
+ble for small regularization weights: both λdac = 0.01 and
+0.05 achieve 91.0 EPDMS, whereas increasing the weight
+to 0.1 reduces the score to 90.5. We use λdac = 0.01 in all
+main experiments. Performance also varies only marginally
+across effective fine-tuning batch sizes of 320, 640, and
+1280, with 640 yielding the highest score. We further ob-
+serve that planning performance is largely insensitive to the
+future-video loss weight within the tested range, and use
+λact : λvid = 1 : 1 throughout.
+Inference-Efficiency Details
+The main paper compares the online latency of SV-WAM
+with world-model-based baselines. Latency is measured
+from preprocessed model inputs to the final trajectory, cov-
+ering visual encoding/tokenization, the core generator, and
+Other, which includes online state and prompt preparation,
+tensor transfers, latent/token packing, scheduler updates, and
+action decoding or post-processing. For reference, on a sin-
+gle H20 GPU, SV-WAM’s deployed action-only path is dom-
+inated by six-view VAE encoding (∼175 ms) and two-step
+denoising (∼151 ms); enablingthe future-videobranch raises
+the trajectory-only latency to 848.0 ± 1.8 ms, while optional
+future-video VAE decoding, required only when future-video
+outputs are requested, adds a further 1394.3 ± 3.3 ms. We
+additionally provide a deployment-oriented breakdown on a
+single H800 GPU below.
+Deployment at 2 Hz on H800.
+On a single H800 GPU, SV-
+WAM runs the full preprocessed-input-to-trajectory pipeline
+at roughly 2 Hz in the deployed action-only setting, i.e. within
+the 0.5 s budget of a 2 Hz planner. Table 11 breaks down the
+H800 cost of the action-only path against the joint action–
+video path.
+Additional Qualitative Results
+Effect of Camera Coverage
+Figure 6 complements the attention analysis and the con-
+trolled camera-coverage ablation reported in the main pa-
+per. Compared with C×1 and C×3, full C×6 coverage pro-
+vides rear and lateral context that captures nearby vehicles
+and road boundaries not fully visible under reduced camera
+coverage. Consequently, the C×6 prediction remains closer
+to the ground-truth trajectory and lane center, whereas the
+reduced-view variants exhibit larger lateral deviations.
+Surround-View Attention Analysis.
+To further examine
+how SV-WAM uses the additional camera views, we visu-
+alize the attention from the future action tokens to the six
+
+
+Method
+NC ↑
+DAC ↑
+EP ↑
+TTC ↑
+C ↑
+PDMS ↑
+TransFuser (Prakash, Chitta, and Geiger 2021)
+97.7
+92.8
+79.2
+92.8
+100.0
+84.0
+DiffusionDrive (Liao et al. 2025)
+98.2
+96.2
+82.2
+94.7
+100.0
+88.1
+VGGDrive (Wang et al. 2026a)
+98.6
+96.3
+82.9
+95.6
+100.0
+88.8
+ResWorld (Zhang et al. 2026)
+98.9
+96.5
+83.1
+95.6
+100.0
+89.0
+MeanFuser (Wang et al. 2026b)
+98.6
+97.0
+82.8
+95.0
+100.0
+89.0
+AutoVLA (Zhou et al. 2025)
+98.4
+95.6
+81.9
+98.0
+99.9
+89.1
+DriveVLA-W0 (Anchor) (Li et al. 2026b)
+98.7
+99.1
+83.3
+95.3
+99.3
+90.2
+AutoDrive-P3 (Ye et al. 2026b)
+99.1
+97.4
+84.8
+96.5
+100.0
+90.6
+ReCogDrive (Li et al. 2026c)
+97.9
+97.3
+87.3
+94.9
+100.0
+90.8
+SafeDrive (Kim et al. 2026)
+99.5
+99.0
+84.3
+97.2
+100.0
+91.6
+DrivingGPT (Chen, Wang, and Zhang 2025)
+98.9
+90.7
+79.7
+94.9
+95.6
+82.4
+World4Drive (Zheng et al. 2025)
+97.4
+94.3
+79.9
+92.8
+100.0
+85.1
+WorldRFT (Yang et al. 2026)
+97.8
+96.8
+81.7
+94.0
+100.0
+87.8
+Epona (Zhang et al. 2025)
+97.9
+95.1
+80.4
+93.8
+99.9
+86.2
+DriveVLA-W0 (Flow) (Li et al. 2026b)
+98.4
+95.3
+80.9
+95.2
+100.0
+87.2
+PWM (Zhao et al. 2025)
+98.6
+95.9
+81.8
+95.4
+100.0
+88.1
+DriveVLA-W0 (Query) (Li et al. 2026b)
+98.7
+96.2
+82.2
+95.5
+100.0
+88.4
+DriveLaW (Xia et al. 2026)
+99.0
+97.1
+81.3
+96.7
+100.0
+89.1
+EponaV2 (Xu et al. 2026)
+98.6
+97.9
+84.8
+95.7
+100.0
+90.4
+Ours
+98.6
+98.6
+83.9
+95.1
+100.0
+90.2
+Table 6: Detailed comparison on the NAVSIMv1 benchmark (Dauner et al. 2024). NC, DAC, EP, TTC, and C are the standard
+Predictive Driver Model Score (PDMS) components.
+Method
+Stage
+NC ↑
+DAC ↑
+DDC ↑
+TLC ↑
+EP ↑
+TTC ↑
+LK ↑
+HC ↑
+EC ↑
+EPDMS ↑
+LTF (Prakash, Chitta, and Geiger 2021)
+1
+96.2
+79.6
+99.1
+99.6
+84.1
+95.1
+94.2
+97.6
+79.1
+25.1
+2
+77.8
+70.2
+84.3
+98.1
+85.1
+75.7
+45.4
+95.7
+76.0
+LTFv6 (Nguyen et al. 2026)
+1
+96.6
+86.7
+99.2
+99.6
+84.5
+95.1
+94.4
+97.8
+76.4
+31.9
+2
+79.9
+75.6
+86.3
+97.9
+89.6
+76.1
+50.1
+95.2
+66.7
+RAP (Feng et al. 2026)
+1
+97.1
+94.4
+98.8
+99.8
+83.9
+96.9
+94.7
+96.4
+66.2
+39.6
+2
+83.2
+83.9
+87.4
+98.0
+86.9
+80.4
+52.3
+95.2
+52.4
+DriveVLA-W0 (Li et al. 2026b)
+1
+96.8
+83.3
+99.0
+99.6
+84.6
+95.3
+96.4
+97.6
+78.2
+24.4
+2
+76.8
+64.3
+79.9
+98.3
+89.2
+75.0
+46.8
+95.8
+53.1
+DriveLaW (Xia et al. 2026)
+1
+97.3
+89.1
+99.2
+99.6
+84.3
+97.1
+96.2
+97.8
+67.6
+30.6
+2
+82.5
+67.6
+83.5
+98.1
+84.8
+78.5
+45.8
+96.4
+57.3
+EponaV2 (Xu et al. 2026)
+1
+97.3
+90.7
+99.4
+100.0
+83.3
+97.3
+97.3
+97.6
+60.9
+36.1
+2
+83.6
+78.0
+88.0
+98.9
+86.0
+80.3
+50.1
+96.1
+52.0
+Ours
+1
+96.6
+94.9
+98.8
+99.8
+82.5
+96.9
+97.1
+97.8
+84.4
+36.1
+2
+82.9
+75.8
+84.3
+98.0
+82.1
+79.1
+48.2
+96.4
+80.1
+Table 7: Detailed comparison on the NAVSIMv2 navhard split with human penalty enabled. Each method is evaluated in two
+stages; EPDMS is the final split score.
+historical camera views during a left lane-change maneuver,
+averaged over the 30 transformer blocks. As shown in Fig-
+ure 7, instead of relying on the front view alone, the action
+tokens place their strongest weight on the front-left and rear
+views, which contain the neighboring vehicle that constrains
+the maneuver. This provides direct evidence that the action
+generator reads side and rear context when making lateral
+decisions, consistent with the surround-view coverage abla-
+tion.
+Zero-shot In-house Transfer
+Figure 8 compares zero-shot planning on an in-house left-
+turn waiting-lane scenario. Epona and PWM use their official
+code and released checkpoints (PWM uses the NAVSIM-
+finetuned checkpoint), and none of the methods is fine-tuned
+on the target domain. Front-only Epona misses the vehicle
+approaching from the rear-left and collides. PWM avoids
+colliding with the rear-left vehicle, but its zero-shot trajectory
+is poor and deviates substantially from the ground truth. In
+contrast, SV-WAM uses the surround-view observation and
+remains closest to the ground truth while clearing the rear-left
+vehicle.
+Scenario-wise Planning Examples
+Figures 9 and 10 present representative high-scoring trajecto-
+ries on the NAVSIMv2 navtest split, across straight driving,
+turning, and intersection scenarios. The same action-only
+planner remains stable across these common closed-loop
+maneuvers despite their different interaction and geometry
+patterns.
+
+
+Method
+nuS. FT
+Ref
+Input
+L2 (m) ↓
+Collision Rate (%) ↓
+1s
+2s
+3s
+Avg.
+1s
+2s
+3s
+Avg.
+ST-P3 (Hu et al. 2022)
+✓
+ECCV’22
+C×6
+1.33
+2.11
+2.90
+2.11
+0.23
+0.62
+1.27
+0.71
+UniAD (Hu et al. 2023b)
+✓
+CVPR’23
+C×6
+0.48
+0.96
+1.65
+1.03
+0.05
+0.17
+0.71
+0.31
+OccNet (Tong et al. 2023)
+✓
+ICCV’23
+C×6
+1.29
+2.13
+2.99
+2.14
+0.21
+0.59
+1.37
+0.72
+OccWorld (Zheng et al. 2024a)
+✓
+ECCV’24
+C×6
+0.52
+1.27
+2.41
+1.40
+0.12
+0.40
+2.08
+0.87
+VAD-Tiny (Jiang et al. 2023)
+✓
+ICCV’23
+C×6
+0.60
+1.23
+2.06
+1.30
+0.31
+0.53
+1.33
+0.72
+VAD-Base (Jiang et al. 2023)
+✓
+ICCV’23
+C×6
+0.54
+1.15
+1.98
+1.22
+0.04
+0.39
+1.17
+0.53
+GenAD (Zheng et al. 2024b)
+✓
+ECCV’24
+C×6
+0.36
+0.83
+1.55
+0.91
+0.06
+0.23
+1.00
+0.43
+Doe-1 (Zheng et al. 2024c)
+✓
+arXiv’24
+C×1
+0.50
+1.18
+2.11
+1.26
+0.04
+0.37
+1.19
+0.53
+Epona (Zhang et al. 2025)
+✓
+ICCV’25
+C×1
+0.61
+1.17
+1.98
+1.25
+0.01
+0.22
+0.85
+0.36
+DriveLaW (Xia et al. 2026)
+✓
+CVPR’26
+C×1
+0.44
+1.10
+1.91
+1.15
+0.15
+0.10
+0.48
+0.24
+DriveVLA-W0 (Li et al. 2026b)
+×
+ICLR’26
+C×1
+0.43
+1.26
+2.60
+1.43
+0.22
+0.66
+1.42
+0.77
+PWM (Zhao et al. 2025)
+×
+NeurIPS’25
+C×1
+2.06
+3.91
+6.00
+3.99
+0.12
+0.15
+0.86
+0.36
+Ours
+×
+–
+C×6
+0.31
+0.80
+1.57
+0.89
+0.07
+0.13
+0.27
+0.16
+Table 8: Full end-to-end motion planning comparison on nuScenes. “nuS. FT” indicates whether a method is fine-tuned on
+nuScenes. Bold values indicate the best results, and underlined values indicate the second-best results.
+Predicted Action Tokens
+NC ↑
+DAC ↑
+DDC ↑
+TLC ↑
+EP ↑
+TTC ↑
+LK ↑
+HC ↑
+EC ↑
+EPDMS ↑
+8
+98.4
+98.5
+99.7
+99.9
+86.3
+98.4
+97.5
+98.4
+88.3
+90.4
+12
+98.6
+98.8
+99.6
+99.9
+86.8
+98.3
+97.8
+98.4
+88.4
+91.0
+16
+98.5
+98.2
+99.7
+99.8
+86.9
+98.1
+97.9
+98.3
+88.1
+90.5
+Table 9: Action-token ablation on NAVSIMv2 navtest (two denoising steps, C×6 input). Metrics are reported as percentages.
+λdac
+EPDMS ↑
+0.01
+91.0
+0.05
+91.0
+0.1
+90.5
+(a) Drivable-area weight
+FT batch
+EPDMS ↑
+320
+90.4
+640
+91.0
+1280
+90.9
+(b) Fine-tuning batch size
+Table 10: Additional training hyper-parameter ablations on
+NAVSIMv2 navtest. (a) Drivable-area regularizer weight
+λdac; (b) effective fine-tuning batch size. Defaults are λdac =
+0.01 and batch size 640. EPDMS is reported as a percentage.
+Comparison with Other Methods
+Figures 11–15 compare DriveLaW, DriveVLA-W0, and SV-
+WAM across 15 representative NAVSIMv2 navtest scenar-
+ios. Each row is one scene, and the three columns corre-
+spond to DriveLaW, DriveVLA-W0, and SV-WAM. Driv-
+eLaW and DriveVLA-W0 use front-view input, whereas SV-
+WAM uses six-camera surround-view input. The examples
+include dense intersections, turning maneuvers, and interac-
+tions with nearby traffic.
+Failure Cases
+Figure 16 presents representative failure cases to characterize
+the remaining limitations of SV-WAM. In the first case, the
+ambiguous two-branch left-turn geometry causes all three
+methods to select an incorrect path. In the second case, heavy
+rain obscures the forward view and traffic signal, leading all
+three methods to fail. In the third case, SV-WAM accelerates
+too conservatively after the signal turns green and is rear-
+ended, while DriveLaW and DriveVLA-W0 complete the
+scenario successfully. These examples suggest that stronger
+Inference path
+Input
+Enc.
+Core
+Gen.
+VAE
+Dec.
+Total
+Speedup
+Action-only
+(deployed)
+∼53 ms
+∼123 ms
+–
+∼176 ms
+∼4.4×
+Joint action–
+video
+∼135 ms ∼201 ms ∼428 ms ∼776 ms
+∼1.0×
+Table 11: Inference-speed breakdown on a single H800 GPU
+(batch size 1, 12 action tokens, 2-step inference). Total is
+measured from preprocessed inputs to the outputs produced
+by each inference path. Action-only is the deployed path;
+joint action–video additionally denoises and decodes future
+video (the reported total also includes ∼12 ms of other online
+operations, such as tensor packing).
+interaction reasoning and more robust uncertainty handling
+remain important directions for future work.
+Limitations and Future Work
+Although SV-WAM achieves strong planning performance
+with efficient action-only inference, its approximately 5B-
+parameter backbone remains relatively large for deployment
+on resource-constrained on-board platforms. We plan to scale
+training with larger and more diverse real-world driving data
+to further improve robustness and generalization, while ex-
+ploring knowledge distillation, pruning, and quantization to
+derive lightweight variants suitable for edge deployment. We
+will also extend the current benchmark-based evaluation to
+closed-loop testing on real vehicles, providing a more com-
+prehensive assessment of reliability and practical deploya-
+bility under diverse traffic and environmental conditions.
+
+
+Front Left
+Front
+Front Right
+Rear Left
+Rear
+Rear Right
+Figure 6: Qualitative comparison of camera coverage on NAVSIMv2. Left: synchronized six-camera observations with ground-
+truth and predicted trajectories projected onto the front view. Right: the corresponding BEV trajectories. Full C×6 coverage
+provides rear and lateral context unavailable to the reduced-view settings, keeping the predicted trajectory closer to the ground
+truth and lane center.
+Front Left
+Front
+Front Right
+Rear Left
+Rear
+Rear Right
+Figure 7: Action-to-view attention in a left lane-change, av-
+eraged over the 30 transformer blocks. The future action
+tokens attend most strongly to the front-left and rear views,
+where the neighboring vehicle that constrains the maneuver
+appears, evidencing that the planner exploits surround-view
+input.
+Front
+Front Left
+Front Right
+Rear Left
+Rear
+Rear Right
+Enter left-turn 
+waiting lane
+Figure 8: Zero-shot qualitative comparison on in-house data
+when entering a left-turn waiting lane. Epona (front view
+only) collides with the rear-left vehicle; PWM avoids the
+rear-left vehicle but its zero-shot trajectory drifts substan-
+tially from the ground truth; SV-WAM remains closest to the
+ground-truth trajectory.
+
+
+Figure 9: Representative high-scoring planning examples grouped by maneuver type. Columns are straight driving, turning, and
+intersection scenarios; each column shows four examples. Green curves denote the ground-truth trajectories, and red curves
+denote the predicted trajectories.
+
+
+Figure 10: Additional high-scoring planning examples grouped by maneuver type, four per column.
+
+
+Figure 11: Qualitative comparison with front-view baselines. Each row is one scene; the three columns, labeled at the bottom
+of the figure, are DriveLaW and DriveVLA-W0 (front camera only, C×1) and SV-WAM (six-camera surround-view, C×6).
+
+
+Figure 12: Additional qualitative comparison with front-view baselines; same three-column layout (DriveLaW, DriveVLA-W0,
+SV-WAM) and camera labeling as in Figure 11.
+
+
+Figure 13: Additional qualitative comparison with front-view baselines; same three-column layout (DriveLaW, DriveVLA-W0,
+SV-WAM) and camera labeling as in Figure 11.
+
+
+Figure 14: Additional qualitative comparison with front-view baselines; same three-column layout (DriveLaW, DriveVLA-W0,
+SV-WAM) and camera labeling as in Figure 11.
+
+
+Figure 15: Additional qualitative comparison with front-view baselines; same three-column layout (DriveLaW, DriveVLA-W0,
+SV-WAM) and camera labeling as in Figure 11.
+
+
+Figure 16: Representative failure cases under challenging conditions. Each row compares DriveLaW, DriveVLA-W0, and
+SV-WAM. The three cases correspond to ambiguous left-turn geometry, rain-obscured traffic-signal perception, and overly
+conservative acceleration after a green signal, respectively.
