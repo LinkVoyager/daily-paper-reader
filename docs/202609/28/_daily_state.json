@@ -1,0 +1,281 @@
+{
+  "date": "20260928",
+  "date_label": "",
+  "generated_at": "2026-09-28 23:40:07 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2609.31313v1",
+      "route": "202609/28/2609.31313v1-towards-vla-dreamer-refining-vla-behavior-using-world-models",
+      "title": "Towards VLA-Dreamer: Refining VLA Behavior Using World Models",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "用预测性世界模型精炼VLA以服务具身控制",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.25187v1",
+      "route": "202609/28/2609.25187v1-x-planner-event-structured-task-planning-for-embodied-intelligence",
+      "title": "X-Planner: Event-Structured Task Planning for Embodied Intelligence",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "面向具身智能与VLA系统的事件结构化任务规划前端",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.25627v1",
+      "route": "202609/28/2609.25627v1-machembodied-u0-unified-understanding-and-generation-model-for-embodied-intelligence",
+      "title": "MachEmbodied-U0: Unified Understanding and Generation Model for Embodied Intelligence",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "耦合视觉动态与动作的具身统一模型",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.25820v1",
+      "route": "202609/28/2609.25820v1-beyond-reconstruction-error-analytical-and-data-driven-action-tokenization-for-autoregressive-vision-language-action-models",
+      "title": "Beyond Reconstruction Error: Analytical and Data-Driven Action Tokenization for Autoregressive Vision-Language-Action Models",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "面向自回归VLA模型并以闭环控制评估的动作分词",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.30868v1",
+      "route": "202609/28/2609.30868v1-vlarl-augmenting-vision-language-action-models-with-simulation-trained-latent-conditioned-residual-rl",
+      "title": "VLaRL: Augmenting Vision-Language-Action Models with Simulation-Trained Latent-Conditioned Residual RL",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "用残差强化学习增强冻结VLA以实现精确具身控制",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.30965v1",
+      "route": "202609/28/2609.30965v1-fram-trajectory-guided-visual-feature-selection-for-compact-language-conditioned-robot-manipulation",
+      "title": "FRAM: Trajectory-Guided Visual Feature Selection for Compact Language-Conditioned Robot Manipulation",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "轨迹引导视觉特征选择的VLA策略",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.23423v1",
+      "route": "202609/28/2609.23423v1-rivervln-phase-grounded-temporal-vision--language-navigation-for-unmanned-surface-vehicles",
+      "title": "RiverVLN: Phase-Grounded Temporal Vision--Language Navigation for Unmanned Surface Vehicles",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "无人艇连续运动视觉语言导航与轨迹执行",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.23578v1",
+      "route": "202609/28/2609.23578v1-ar-wam-a-visual-conditioned-agent-ready-world-action-model-for-robotic-manipulation",
+      "title": "AR-WAM: A Visual-Conditioned Agent-Ready World Action Model for Robotic Manipulation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向智能体控制的视觉条件世界动作模型",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.23580v1",
+      "route": "202609/28/2609.23580v1-taskanchor-grounding-task-state-in-reactive-vlas-for-long-horizon-manipulation",
+      "title": "TaskAnchor: Grounding Task State in Reactive VLAs for Long-Horizon Manipulation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "为长时程操作的反应式VLA锚定任务状态",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.23650v1",
+      "route": "202609/28/2609.23650v1-beyond-appearance-shifts-task-semantic-action-calibration-for-vla-models",
+      "title": "Beyond Appearance Shifts: Task-Semantic Action Calibration for VLA Models",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "VLA模型的任务语义动作校准",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.23944v1",
+      "route": "202609/28/2609.23944v1-topology-informed-visual-prompting-for-vision-language-action-policies",
+      "title": "Topology-Informed Visual Prompting For Vision Language Action Policies",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向VLA策略的拓扑引导视觉提示与运动规划",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.23968v1",
+      "route": "202609/28/2609.23968v1-opt2vla-force-aware-vision-language-action-for-contact-rich-humanoid-whole-body-manipulation",
+      "title": "Opt2VLA: Force-Aware Vision-Language-Action for Contact-Rich Humanoid Whole-Body Manipulation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向具身人形全身控制的力感知VLA模型",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.23275v1",
+      "route": "202609/28/2609.23275v1-sculpt-vla-learning-structured-control-through-staged-action-grounding",
+      "title": "SCULPT-VLA: Learning Structured Control through Staged Action Grounding",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "通过分阶段动作接地实现VLA策略的结构化控制",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.23614v1",
+      "route": "202609/28/2609.23614v1-compvla-a-variable-compliance-vision-language-action-model-for-contact-rich-manipulation",
+      "title": "CompVLA: A Variable Compliance Vision-Language-Action Model for Contact-rich Manipulation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向接触丰富操作的合规性VLA模型",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.24433v1",
+      "route": "202609/28/2609.24433v1-foldquantvla-native-low-bit-quantization-of-vision-language-action-models-via-consistent-folding",
+      "title": "FoldQuantVLA: Native Low-Bit Quantization of Vision-Language-Action Models via Consistent Folding",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向机器人推理的VLA模型低位量化",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.24576v1",
+      "route": "202609/28/2609.24576v1-what-do-vlm-based-vision-language-navigation-models-rely-on-interpreting-and-steering-policy-behavior",
+      "title": "What do VLM-Based Vision-Language Navigation Models Rely on: Interpreting and Steering Policy Behavior",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "具身智能体中VLM导航策略的可解释性与引导",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    },
+    {
+      "paper_id": "2609.25515v1",
+      "route": "202609/28/2609.25515v1-real-world-perception-for-autonomous-driving-in-adverse-weather-enhancing-standard-detectors-via-foundation-guided-auto-annotation",
+      "title": "Real-World Perception for Autonomous Driving in Adverse Weather: Enhancing Standard Detectors via Foundation-Guided Auto-Annotation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "基础模型引导自动标注的自动驾驶感知",
+      "first_seen_at": "2026-09-28 23:40:07 UTC",
+      "updated_at": "2026-09-28 23:40:07 UTC"
+    }
+  ]
+}

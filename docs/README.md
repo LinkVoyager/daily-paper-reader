@@ -48,17 +48,17 @@
 <section class="dpr-home-dashboard-card dpr-home-report-card">
   <div class="dpr-home-dashboard-header">
     <div>
-      <span class="dpr-home-dashboard-kicker">2026-08-30 ~ 2026-09-28</span>
+      <span class="dpr-home-dashboard-kicker">2026-09-28</span>
       <h3 class="dpr-home-dashboard-title">今日汇总</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">共 19 篇</strong>
+    <strong class="dpr-home-dashboard-count">共 17 篇</strong>
   </div>
   <dl class="dpr-home-dashboard-stats">
     <div class="dpr-home-dashboard-stat"><dt>累计更新</dt><dd>1 次</dd></div>
-    <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>0</dd></div>
-    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>19</dd></div>
+    <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>6</dd></div>
+    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>11</dd></div>
   </dl>
-  <p class="dpr-home-dashboard-body">最近更新：2026-09-28 05:15:54 UTC<br>状态：成功</p>
+  <p class="dpr-home-dashboard-body">最近更新：2026-09-28 23:40:07 UTC<br>状态：成功</p>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-brief-card">
   <div class="dpr-home-dashboard-header">
@@ -69,7 +69,7 @@
     <strong class="dpr-home-dashboard-count">AI</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<p>本期速读19篇、精读0篇，自动驾驶VLA、环视世界模型与推理到动作三条线齐现三篇10分满分论文。最值得看的是《Rethinking Language&#x27;s Role in Efficient VLA for Autonomous Vehicles》和《SV-WAM: An Efficient Surround-View World-Action Model for End-to-End Autonomous Driving》：前者追问语言在高效驾驶VLA中的角色，后者用环视世界-动作模型推进端到端自动驾驶。普通读者可先读这两篇的摘要与核心图，理解“更聪明、可信的驾驶”如何靠更高效的表征与推理实现，再等后续精读验证细节。</p>
+<p>今日精读6篇、速读11篇，共筛选17篇论文，聚焦VLA与世界模型、具身任务规划。最值得看的是9.0分的《Towards VLA-Dreamer》用世界模型优化VLA行为，以及8.0分的《X-Planner》事件结构化任务规划。普通读者可优先从这两篇入手，再顺带浏览USV导航与机器人操作方向的速读论文。</p>
   </div>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-deep-card">
@@ -78,12 +78,12 @@
       <span class="dpr-home-dashboard-kicker">今日累计</span>
       <h3 class="dpr-home-dashboard-title">精读推荐</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">0 篇</strong>
+    <strong class="dpr-home-dashboard-count">6 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<p class="dpr-home-dashboard-empty">今日暂无推荐。</p>
+<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="Towards VLA-Dreamer: Refining VLA Behavior Using World Models">Towards VLA-Dreamer: Refining VLA Behavior Using World Models</span></li><li><span class="dpr-home-dashboard-paper-title" title="X-Planner: Event-Structured Task Planning for Embodied Intelligence">X-Planner: Event-Structured Task Planning for Embodied Intelligence</span></li><li><span class="dpr-home-dashboard-paper-title" title="MachEmbodied-U0: Unified Understanding and Generation Model for Embodied Intelligence">MachEmbodied-U0: Unified Understanding and Generation Model for Embodied Intelligence</span></li></ul>
   </div>
-
+  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">driving-vla <strong>6</strong></span></div>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-skim-card">
   <div class="dpr-home-dashboard-header">
@@ -91,12 +91,12 @@
       <span class="dpr-home-dashboard-kicker">今日累计</span>
       <h3 class="dpr-home-dashboard-title">速读推荐</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">19 篇</strong>
+    <strong class="dpr-home-dashboard-count">11 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="Rethinking Language&#x27;s Role in Efficient VLA for Autonomous Vehicles: Toward Smarter, Trustworthy Driving">Rethinking Language&#x27;s Role in Efficient VLA for Autonomous Vehicles: Toward Smarter, Trustworthy Driving</span></li><li><span class="dpr-home-dashboard-paper-title" title="SV-WAM: An Efficient Surround-View World-Action Model for End-to-End Autonomous Driving">SV-WAM: An Efficient Surround-View World-Action Model for End-to-End Autonomous Driving</span></li><li><span class="dpr-home-dashboard-paper-title" title="GRAVA: Grounded Reasoning-to-Action Representation and Learning for Autonomous Driving">GRAVA: Grounded Reasoning-to-Action Representation and Learning for Autonomous Driving</span></li></ul>
+<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="RiverVLN: Phase-Grounded Temporal Vision--Language Navigation for Unmanned Surface Vehicles">RiverVLN: Phase-Grounded Temporal Vision--Language Navigation for Unmanned Surface Vehicles</span></li><li><span class="dpr-home-dashboard-paper-title" title="AR-WAM: A Visual-Conditioned Agent-Ready World Action Model for Robotic Manipulation">AR-WAM: A Visual-Conditioned Agent-Ready World Action Model for Robotic Manipulation</span></li><li><span class="dpr-home-dashboard-paper-title" title="TaskAnchor: Grounding Task State in Reactive VLAs for Long-Horizon Manipulation">TaskAnchor: Grounding Task State in Reactive VLAs for Long-Horizon Manipulation</span></li></ul>
   </div>
-  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">driving-vla <strong>19</strong></span></div>
+  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">driving-vla <strong>11</strong></span></div>
 </section>
 </div>
 

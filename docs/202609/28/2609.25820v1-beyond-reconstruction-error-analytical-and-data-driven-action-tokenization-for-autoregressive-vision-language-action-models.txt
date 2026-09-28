@@ -1,0 +1,229 @@
+Title: Beyond Reconstruction Error: Analytical and Data-Driven Action Tokenization for Autoregressive Vision-Language-Action Models
+
+URL Source: https://arxiv.org/pdf/2609.25820v1
+
+Published Time: Wed, 23 Sep 2026 00:49:32 GMT
+
+Number of Pages: 5
+
+Markdown Content:
+BEYOND RECONSTRUCTION ERROR: ANALYTICAL AND DATA-DRIVEN ACTION TOKENIZATION FOR AUTOREGRESSIVE VISION-LANGUAGE-ACTION MODELS 
+
+Yuxin Yang 1,†, Gaohan He 2,†, Changxue Guan 1, Hangming Liu 3,∗
+
+> 1
+
+College of Artificial Intelligence, Southwest University 2Ocean College, Zhejiang University 
+
+> 3
+
+Tianfu Securities Co., Ltd.    
+
+> tianyiyoung127@gmail.com Hannah.he@zju.edu.cn gcx 0601@qq.com liuhm@tianfuzq.cn
+
+ABSTRACT 
+
+Discrete action tokenization is central to autoregressive vision-language-action (VLA) models, yet action representations are often evaluated primarily through reconstruction fidelity. We ask which representation properties actually matter for closed-loop control by comparing fixed analytical, data-driven lin-ear, and nonlinear neural representations under a unified tok-enization interface. Across rate–distortion analysis, sequence-modeling diagnostics, and 3,500 LIBERO rollouts, represen-tation rankings change with the evaluation criterion. PCA achieves lower nominal reconstruction error than Temporal-DCT, but produces less predictable token sequences and 3.0 percentage points lower mean seen-task success across three policy-training seeds, with the policy ordering reversing in one seed. In a matched seed-42 ablation, an autoencoder further reduces reconstruction error yet does not yield the strongest policy and exhibits greater sensitivity to discrete token pertur-bations. These findings show that reconstruction fidelity alone cannot reliably select action representations for autoregres-sive control, motivating joint evaluation of geometric fidelity, sequence predictability, decoder stability, and closed-loop per-formance. 
+
+Index Terms — Action Tokenization, Vision-Language-Action, Discrete Cosine Transform, Principal Component Analysis, Robot Learning. 
+
+1. INTRODUCTION 
+
+Autoregressive vision-language-action (VLA) models formu-late robot control as sequence prediction by mapping con-tinuous actions to discrete tokens [1–5]. This interface is consequential: an action tokenizer must preserve task-relevant motion information while producing sequences that remain compact and predictable for autoregressive decoding. Conse-quently, tokenizer quality can directly affect closed-loop exe-cution rather than merely compression efficiency. Early VLA systems rely on per-dimension discretization [1, 2], while re-cent approaches increasingly tokenize multi-step action chunks to reduce sequence length and capture temporal structure. FAST [3], for example, uses a fixed temporal Discrete Cosine Transform (DCT) [6] to exploit trajectory smooth- 
+
+> †Equal contribution. ∗Corresponding author: Hangming Liu.
+
+ness, whereas subsequent approaches explore learned vector-quantized codebooks [4] and mixture-of-experts tokenizers [5]. Despite these architectural advances, a basic representation question remains unresolved. Action tokenizers are often char-acterized by compression or reconstruction quality, yet au-toregressive control imposes additional requirements: tokens must remain predictable to the policy, and discrete prediction errors should not induce disproportionately large changes in decoded actions. Thus, lower geometric reconstruction error does not necessarily imply better closed-loop control. This raises a fundamental question: what properties of an action representation actually matter for autoregressive robotic execution? This suggests viewing action tokenization not merely as a compression problem, but as an interface jointly coupling geometric representation, autoregressive sequence modeling, and error propagation into physical actions. We investigate this question through three representative representation families under a unified tokenization interface (Fig. 1). Temporal-DCT provides a fixed analytical harmonic prior; Principal Component Analysis (PCA) provides a data-driven orthogonal basis that captures cross-axis correlations; and an MLP autoencoder provides a flexible nonlinear latent representation. By keeping normalization, quantization, token budget, VLA backbone, optimization, and rollout protocols matched within each comparison, we isolate how represen-tation choice affects rate-distortion behavior, sequence pre-dictability, quantization sensitivity, and closed-loop perfor-mance. Our main findings are threefold: • Representation Trade-offs : Across 20 rate–distortion regimes and cross-distribution tests, PCA attains lower nominal reconstruction error than Temporal-DCT, while DCT is more robust under coarse quantization and yields more predictable sequences. • Closed-Loop Policy Performance : In 3,500 closed-loop rollouts with Qwen3-VL-4B on LIBERO-Spatial, Temporal-DCT exceeds PCA by 3.0 pp on average across three seeds, despite its higher nominal recon-struction error; the ordering reverses in one seed. • Reconstruction–Control Misalignment : In a matched ablation, an autoencoder attains the lowest reconstruc-tion error but not the highest success rate. Its larger arXiv:2609.25820v1 [cs.RO] 22 Sep 2026 STRICTLY CONTROLLED ACROSS ALL CONDITIONS     
+
+> Qwen3-VL-4B | K=14 | V=256 | 30k Steps | Paired Initial States
+> Action Chunk
+> T=16, D=7 Two-stage normalization
+> Representation
+> Temporal-DCT (fixed) PCA (learned linear) AE (nonlinear)
+> Scalar Tokens
+> K=14 V=256
+> Autoregressive VLA
+> 3,500 rollouts LIBERO-Spatial
+> Dequantize + decode -> execute -> paired closed-loop evaluation
+> (a) Controlled Representation Evaluation Pipeline
+> 56789Reconstruction MSE (x 10 −3 ; lower is better) 74 76 78 80 82 84 86 88 90 Seen-task success (%)
+> AE MSE=0.00528; Seen=82.7% PCA MSE=0.00834; Seen=80.0% Temporal-DCT MSE=0.00909; Seen=86.2%
+> Reconstruction-control ranking mismatch
+> (b) Reconstruction and Control (Matched Seed-42 Comparison)
+
+Fig. 1 . (a) Controlled evaluation pipeline: only the action representation is varied, while the VLA backbone, token budget, vocabulary, optimizer, and rollout protocol are matched. (b) Seed-42 reconstruction–control misalignment: the representation with the lowest reconstruction MSE is not the one with the highest seen-task success. 
+
+Table 1 . Reconstruction MSE across 20 rate-distortion regimes on LIBERO-Spatial. P/D denotes PCA/Temporal-DCT as the lower-MSE representation; values indicate relative MSE reduction ∆ (%). Bold highlights nominal setting. 
+
+Tokens K 2-Bit 4-Bit 6-Bit 8-Bit 16-Bit 
+
+K = 7 D 13.3 P 20.7 P 24.9 P 25.2 P 25.2 
+
+K = 14 D 10.2 P 3.0 P 7.7 P 8.3 P 8.3 
+
+K = 21 D 9.4 D 1.8 P 1.6 P 2.5 P 2.5 
+
+K = 28 D 9.1 D 1.7 P 2.8 P 4.5 P 4.4 
+
+perturbation gain further identifies decoder stability as a property hidden by reconstruction MSE. 
+
+2. BASIS ACTION TOKENIZATION PIPELINE 
+
+To isolate the effect of the underlying representation basis, we deliberately omit downstream BPE compression and ex-pose all methods through an identical fixed-K scalar-token interface. Thus, our Temporal-DCT condition evaluates the an-alytical representation stage underlying FAST [3] rather than reproducing the complete FAST tokenizer. 
+
+2.1. Trajectory Chunking and Normalization 
+
+Following action chunking [3, 7, 8], continuous control trajec-tories are sliced into temporal windows of horizon T = 16 
+
+with action dimension D = 7 (3D Cartesian translation, 3D axis-angle rotation, and 1D binary gripper state). A single chunk is flattened into a ∈ RM , where M = T × D = 112 .To guarantee strictly leakage-free conditioning, normal-izers are fitted exclusively on training demonstrations (Tasks 0–8): (1) Coordinate Scaling : 6-DoF end-effector pose com-mands are scaled to [−1, 1] based on training bounds, while binary gripper commands are kept unscaled in [0 , 1] ; (2) Stan-dardization : the flattened 112 D vector is z-score standardized as ˜a = ( a − μ) ⊘ σ.
+
+2.2. Analytical, Linear, and Neural Tokenizers 
+
+A linear tokenizer projects standardized chunk ˜a ∈ RM onto 
+
+K orthonormal basis vectors {bk}Kk=1 (B ∈ RK×M , BB ⊤ =
+
+IK ): 
+
+c = B˜a ∈ RK , ˆa = B⊤c ∈ RM . (1) 
+
+Temporal-DCT Basis : Following FAST [3], independent 1D DCT-II transforms are applied along the time horizon T for each actuator channel. The 1D DCT matrix C ∈ RT ×T is defined by: 
+
+Cu,t =
+
+r 2
+
+T αu cos 
+
+ π(2 t + 1) u
+
+2T
+
+
+
+, (2) where α0 = 1 /√2 and αu = 1 for u ≥ 1. To ensure all channels remain controllable, basis vectors are assigned in fre-quency priority: for K = 7 m, we retain the first m frequency components across all D = 7 channels ( K ∈ { 7, 14 , 21 , 28 }
+
+corresponds to m ∈ { 1, 2, 3, 4} coefficients/channel, with nominal K = 14 , m = 2 ). 
+
+PCA / Karhunen–Loeve Basis : The data-driven linear ba-sis is obtained from the empirical covariance matrix Σ =
+
+E[(˜ a − ¯a)(˜ a − ¯a)⊤] on the training trajectories. SVD yields eigenvectors v1, . . . , vM sorted by decreasing eigenvalue λi.The top K principal components form the rows of BPCA .While DCT treats actuators independently, PCA adapts to empirical cross-axis kinematic correlations across end-effector axes. 
+
+Nonlinear Autoencoder (AE) : We train an MLP Autoen-coder with symmetrical bottleneck architecture ( 112 → 64 →
+
+14 → 64 → 112 ) using GELU activations to compress chunks into a 14 D continuous latent bottleneck. The AE serves as a reconstruction-optimized nonlinear baseline rather than a quantization-aware learned tokenizer. 
+
+2.3. Symmetric Uniform Quantization 
+
+Let b denote the quantization precision with codebook vocab-ulary size V = 2 b (V = 256 for nominal 8-bit quantization). Projection coefficients c ∈ RK are quantized into discrete tokens z ∈ { 0, . . . , V − 1}K . Each coefficient ck is stan-dardized by its training standard deviation σc,k , clipped to Table 2 . Closed-loop success (%) on LIBERO-Spatial over three seeds (50 paired initial states/task). Tasks 0–8 are seen; all six PCA/DCT policies score 0/50 on held-out Task 9. ± denotes standard deviation across policy-training seeds.                                                                                                            
+
+> Condition Task 0 Task 1 Task 2 Task 3 Task 4 Task 5 Task 6 Task 7 Task 8 Seen Avg (0–8)
+> PCA (seed 42) 96% 90% 94% 66% 44% 88% 94% 92% 56% 80.0% (360/450) PCA (seed 43) 88% 84% 100% 70% 78% 92% 96% 90% 70% 85.3% (384/450) PCA (seed 44) 94% 86% 100% 80% 60% 84% 92% 86% 76% 84.2% (379/450)
+> PCA (3-Seed Mean) 92.7% 86.7% 98.0% 72.0% 60.7% 88.0% 94.0% 89.3% 67.3% 83.2% ±2.8% DCT (seed 42) 90% 88% 96% 84% 56% 90% 94% 84% 94% 86.2% (388/450) DCT (seed 43) 90% 96% 98% 92% 82% 90% 98% 88% 82% 90.7% (408/450) DCT (seed 44) 92% 96% 86% 94% 26% 86% 88% 86% 80% 81.6% (367/450)
+> DCT (3-Seed Mean) 90.7% 93.3% 93.3% 90.0% 54.7% 88.7% 93.3% 86.0% 85.3% 86.2% ±4.6%
+> ∆(PCA −DCT) +2.0 −6.7 +4.7 −18.0 +6.0 −0.7 +0.7 +3.3 −18.0 −3.0 pp
+
+[−5, +5] , and uniformly quantized: 
+
+zk =
+
+ 
+
+clip 
+
+ ck
+
+σc,k 
+
+, −5, 5
+
+
+
++ 5 
+
+
+
+· V − 110 
+
+
+
+. (3) Dequantization maps zk back to continuous approximation 
+
+ˆck = ( zk · 10   
+
+> V−1
+
+− 5) · σc,k . For linear orthogonal models (PCA and Temporal-DCT), the continuous standardized chunk is recovered via transpose projection ˆ˜a = B⊤ˆc. For the Au-toencoder, the continuous latent vector ˆh = ˆ c is decoded via its nonlinear decoder network ˆ˜a = g(ˆh). Both are finally de-standardized to restore coordinate-scaled action commands 
+
+ˆa ∈ [−1, 1] 6 × [0 , 1] . All reported reconstruction MSEs are measured post-quantization in this coordinate-scaled action space. 
+
+3. OFFLINE REPRESENTATION ANALYSIS 3.1. Rate–Distortion and Quantization Sensitivity 
+
+We first examine how the representation basis interacts with token budget and quantization precision. Table 1 reveals a clear regime shift rather than a uniformly superior basis. At moderate and high precision, PCA benefits from concentrat-ing trajectory variance into a compact data-adaptive subspace, outperforming Temporal-DCT in 14 of the 20 evaluated con-figurations. At the nominal setting ( K = 14 , 8-bit), this yields an 8.3% reduction in reconstruction MSE (0.0083 vs. 0.0091). This advantage reverses under extreme 2-bit quantization, where Temporal-DCT is consistently better across all token budgets. A plausible structural explanation is that Temporal-DCT preserves channel-wise harmonic structure, whereas each PCA component generally mixes multiple action dimensions. Consequently, coarse coefficient errors in PCA can be redis-tributed across several physical coordinates after inverse pro-jection. These results indicate that a basis that is favored under nominal reconstruction need not remain optimal once quantization noise dominates the error budget. 
+
+3.2. Cross-Task and Cross-Dataset Generalization 
+
+We next test whether the learned PCA basis remains advanta-geous outside the distribution on which it is fitted. In leave-one-task-out evaluation within LIBERO-Spatial, PCA retains a 
+
+Table 3 . Token predictability and policy loss on LIBERO-Spatial ( K = 14 , V = 256 ; lower is better). Policy loss is teacher-forced on seed-42 Task 0.                    
+
+> Tokenizer Entropy (bits) PPL-1 PPL-2 PPL-3 Policy Loss (nats/token) PCA 6.665 105.61 108.20 180.81 3.513
+> Temporal-DCT 5.919 92.38 90.11 143.37 3.419 DCT Advantage −0.746 bits −12.5% −16.7% −20.7% −2.7%
+
+modest advantage, winning 6 of 10 held-out tasks and reducing macro-average MSE by 6.2%. (For this offline diagnostic, the PCA basis is refitted on the remaining nine tasks in each fold; this is distinct from our downstream policy protocol, where Task 9 is strictly excluded from fitting and training.) This sug-gests that learned cross-axis structure transfers across related manipulation tasks. A different pattern emerges under zero-shot cross-dataset transfer. On LIBERO-Object, neither basis consistently dominates. On LIBERO-Goal, however, the preferred repre-sentation depends strongly on token budget: Temporal-DCT achieves 22.9–42.2% lower MSE at K ∈ { 7, 14 }, whereas PCA recovers the advantage at K ∈ { 21 , 28 } and improves MSE by up to 28.3% at K = 28 . This crossover suggests that data-driven bases are most effective when sufficient rep-resentational capacity is available to capture domain-specific correlations, while a fixed harmonic prior can be more robust in this transfer setting when the representation budget is strongly constrained. 
+
+3.3. Sequence Predictability 
+
+Geometric fidelity is only one aspect of an action tokenizer for an autoregressive policy; the resulting discrete sequence must also be predictable from preceding tokens. We estimate token entropy and n-gram perplexity on disjoint episode splits using Lidstone smoothing (Table 3). Despite higher nominal reconstruction error, Temporal-DCT yields an easier prediction problem: position-wise en-tropy is 0.75 bits lower and perplexity drops by 12.5–20.7% (Table 3). Teacher-forced policy loss on seed-42 Task 0 fol-lows the same direction (3.419 vs. 3.513 nats/token). Thus, a representation may sacrifice geometric fidelity while produc-ing statistically simpler sequences. 
+
+4. DOWNSTREAM ROBOTIC POLICY EVALUATION 4.1. Evaluation Protocol 
+
+We instantiate each tokenizer in the same Qwen3-VL-4B pol-icy [9]. Action IDs ( V = 256 ) map to dedicated tokens with dual 128 × 128 image inputs and no proprioception. Policies use LoRA [10] ( r = 64 , α = 128 ) on attention projections, trained for 30k steps with AdamW. Each step predicts K = 14 
+
+tokens, decoded to T = 16 actions. Normalizers and data-driven tokenizers are fitted on Tasks 0–8; Task 9 is strictly excluded. Paired evaluation over 50 initial states per task/seed across 7 runs yields 3,500 rollouts (113.6 H800 GPU-hours). Macro success uncertainty is estimated via 20,000-draw paired bootstrap. 
+
+4.2. Closed-Loop Control 
+
+Table 2 shows that PCA’s reconstruction advantage does not translate monotonically into control. Temporal-DCT attains 86.2% mean seen-task success, compared with 83.2% for PCA. It leads by 6.2 and 5.3 pp for seeds 42 and 43, respec-tively; the corresponding paired-bootstrap 95% intervals for PCA −DCT are [−10 .7, −1.8] and [−9.3, −1.3] pp. Seed 44 reverses the ordering, with PCA ahead by 2.7 pp, but its inter-val [−1.8, +7 .1] includes zero. Hence, the aggregate 3.0-pp DCT advantage is reproducible in direction for two seeds, but not invariant to policy optimization. Given only three indepen-dent policy-training seeds, we therefore treat the cross-seed mean gap as descriptive rather than as an inferential claim over optimization randomness. PCA has a higher three-seed mean on five of nine seen tasks, but DCT gains 18.0 pp on Tasks 3 and 8, producing the higher macro-average. Both tokenizers score 0/50 on held-out Task 9 across all seeds, precluding cross-task comparison and reflecting a general floor effect. 
+
+4.3. Reconstruction–Control Misalignment 
+
+The nonlinear autoencoder provides a second counterexample to reconstruction-driven tokenizer selection. As shown in Ta-ble 4, it reduces post-quantization MSE by 36.7% relative to PCA and 41.9% relative to Temporal-DCT. Nevertheless, its 82.7% seen-task success lies between PCA (80.0%) and DCT (86.2%): the reconstruction ranking AE >PCA >DCT does not match the control ranking DCT >AE >PCA. Greater rep-resentational flexibility therefore improves geometric fidelity without determining the downstream policy ordering. To probe this discrepancy, we measure sensitivity to dis-crete token perturbations. Let ˆa(z) = D(Q−1(z)) denote the decoded action from token vector z, where D(·) = B⊤(·) for 
+
+Table 4 . Tokenizer ablations on LIBERO-Spatial (seed 42, 
+
+K = 14 ). Gz is mean perturbation gain under |δz | = 4 ; lower is better.                    
+
+> Condition Representation Type Recon. MSE ↓Gz↓Seen ↑
+> PCA Learned linear 0.00834 0.0336 80.0%
+> Temporal-DCT Fixed analytical 0.00909 0.0337 86.2% Autoencoder Nonlinear neural 0.00528 0.0431 82.7%
+
+linear bases (PCA/DCT) and D(·) = g(·) for the autoencoder. We evaluate the perturbation gain: 
+
+Gz = ∥ˆa(z + δz) − ˆa(z)∥2
+
+∥δz∥2
+
+. (4) We perturb token coordinates by δz j ∈ {± 1, ±2, ±4}, clip to valid vocabulary range, and average Gz over chunks, all K
+
+coordinates, and both signs in coordinate-scaled action space (a ∈ [−1, 1] 6 × [0 , 1] ). The autoencoder exhibits 26.5–30.3% larger mean amplification than linear bases; at |δz j | = 4 , Gz
+
+reaches 0.0431 vs. 0.0336 for PCA/DCT (Table 4). This diag-nostic identifies decoder sensitivity omitted by reconstruction MSE. 
+
+4.4. Synthesis of Representation Trade-offs 
+
+Together, these findings establish a non-monotonic link be-tween rate–distortion quality and control. PCA attains lower nominal reconstruction error among the linear bases, yet DCT produces more predictable sequences, remains robust under coarse quantization, and achieves higher mean seen-task suc-cess in our evaluation. The autoencoder minimizes recon-struction MSE but fails to lead control and incurs the highest perturbation gain. Action-tokenizer evaluation should there-fore separate geometric fidelity , sequence predictability , and 
+
+decoder stability .
+
+5. LIMITATIONS 
+
+Our study evaluates LIBERO-Spatial with one VLA backbone, three training seeds, and fixed K = 14 scalar quantization. Morphological diversity, policy scale, learned codebooks, and BPE compression remain open; the observed ordering should not be assumed to transfer unchanged. Perturbation gain is local rather than causal, and the Task 9 floor precludes held-out conclusions. 
+
+6. CONCLUSION 
+
+In this controlled autoregressive VLA study, rankings diverge: DCT leads PCA by 3.0 pp in mean seen-task success despite worse reconstruction, while the autoencoder minimizes dis-tortion without leading control. Reconstruction alone there-fore cannot select a policy representation; tokenizers require sequence-aware diagnostics and paired closed-loop evaluation. 7. REFERENCES 
+
+[1] Brianna Zitkovich, Tianhe Yu, Sichun Xu, Peng Xu, Ted Xiao, Fei Xia, Jialin Wu, Paul Wohlhart, Stefan Welker, Ayzaan Wahid, Quan Vuong, Vincent Vanhoucke, Huong Tran, Radu Soricut, Anikait Singh, Jaspiar Singh, Pierre Sermanet, Pannag R. Sanketi, Grecia Salazar, Michael S. Ryoo, Krista Reymann, Kanishka Rao, Karl Pertsch, et al., “RT-2: Vision-language-action models transfer web knowledge to robotic control,” in Proc. Conference on Robot Learning (CoRL) , 2023, pp. 2165–2183. [2] Moo Jin Kim, Karl Pertsch, Siddharth Karamcheti, Ted Xiao, Ashwin Balakrishna, Suraj Nair, Rafael Rafailov, Ethan P. Foster, Pannag R. Sanketi, Quan Vuong, Thomas Kollar, Benjamin Burchfiel, Russ Tedrake, Dorsa Sadigh, Sergey Levine, Percy Liang, and Chelsea Finn, “Open-VLA: An open-source vision-language-action model,” in 
+
+Proc. Conference on Robot Learning (CoRL) , 2024, pp. 2679–2713. [3] Karl Pertsch, Kyle Stachowicz, Brian Ichter, Danny Driess, Suraj Nair, Quan Vuong, Oier Mees, Chelsea Finn, and Sergey Levine, “FAST: Efficient action tok-enization for vision-language-action models,” in Proc. Robotics: Science and Systems (RSS) , 2025. [4] Yicheng Liu, Shiduo Zhang, Zibin Dong, Baijun Ye, Tianyuan Yuan, Xiaopeng Yu, Linqi Yin, Chenhao Lu, Junhao Shi, Luca Jiang-Tao Yu, Liangtao Zheng, Jingjing Gong, Tao Jiang, Xipeng Qiu, and Hang Zhao, “FASTer: Toward powerful and efficient autoregressive vision-language-action models with learnable action tokenizer and block-wise decoding,” in Proc. International Con-ference on Learning Representations (ICLR) , 2026. [5] Chunpu Xu, Zhixuan Liang, Tianshuo Yang, Chi-Min Chan, Yang Xiao, Jessie Wang, Xiaokang Yang, and Yao Mu, “MoEActok: A MoE-based action tokenizer for vision-language-action models,” in Proc. IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , 2026, pp. 28042–28051. [6] Nasir Ahmed, T. Natarajan, and Kamisetty R. Rao, “Dis-crete cosine transform,” IEEE Transactions on Comput-ers , vol. C-23, no. 1, pp. 90–93, 1974. [7] Tony Z. Zhao, Vikash Kumar, Sergey Levine, and Chelsea Finn, “Learning fine-grained bimanual manipu-lation with low-cost hardware,” in Proc. Robotics: Sci-ence and Systems (RSS) , 2023. [8] Cheng Chi, Siyuan Feng, Yilun Du, Zhenjia Xu, Eric Cousineau, Benjamin Burchfiel, and Shuran Song, “Dif-fusion policy: Visuomotor policy learning via action dif-fusion,” in Proc. Robotics: Science and Systems (RSS) ,2023. [9] Shuai Bai, Yuxuan Cai, Ruizhe Chen, Keqin Chen, Xionghui Chen, Zesen Cheng, Lianghao Deng, Wei Ding, Chang Gao, et al., “Qwen3-VL technical report,” arXiv preprint arXiv:2511.21631 , 2025. [10] Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen, “LoRA: Low-rank adaptation of large language models,” in Proc. International Conference on Learning Representations (ICLR) , 2022.

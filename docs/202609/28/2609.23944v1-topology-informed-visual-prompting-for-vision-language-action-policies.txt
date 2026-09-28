@@ -1,0 +1,244 @@
+Title: Topology-Informed Visual Prompting For Vision Language Action Policies
+
+URL Source: https://arxiv.org/pdf/2609.23944v1
+
+Published Time: Tue, 22 Sep 2026 02:35:27 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# Topology-Informed Visual Prompting For Vision Language Action Policies 
+
+Haoyang Wu 1, Abhinav Kumar 1, Dmitry Berenson 1
+
+Abstract —Vision-language-action (VLA) policies can struggle with manipulation tasks with complex obstacle geometries due to partial observability. These complex geometries can lead to similar visual observations or robot configurations requiring qualitatively different actions, a distinction that can be quantified using topological signatures. While motion planners with full knowledge of environment geometries and object states can reason about these signatures in planning, this information is often not known at deployment. To address this issue, we present a topology-guided visual-prompting framework that uses simulation-based planning to augment a nominal demonstra-tion dataset and provides vision-based guidance at deployment. Our method uses a Gauss-Linking-Integral topological signature representation to capture important topological properties of the environment. Using privileged geometry information from a simulation approximation of our environment, we augment a VLA fine-tuning dataset with trajectories that move the system to a demonstrated signature and, from the new configuration, resume task execution. A vision-language model (VLM) is fine-tuned on the same dataset to both predict signatures from live camera observations and predict end-effector waypoints, which are rendered as visual prompts on the observations to guide the VLA. Across three simulated bimanual tasks and a real-world box pickup task, our method outperforms a VLA fine-tuned only on nominal demonstrations and a VLM-prompting baseline that can remove topology-relevant information from observations. On hardware, it exceeds the strongest baseline by 40% in task suc-cess. Project website: https://topology-vla.github.io .
+
+Index Terms —Deep Learning Methods, Manipulation Planning 
+
+I. I NTRODUCTION 
+
+Vision-language-action (VLA) policies have shown great promise for learning generalizable policies from diverse data sources. By combining large-scale Vision-Language Models (VLM) with action prediction, they aim to retain the generaliz-able intelligence of VLMs while adding action generation. An important question, however, is whether VLAs operating under partial observability can reliably solve manipulation problems that are traditionally addressed assuming full observability. Given ground truth information about environment geome-tries and object states, model-based planners can explicitly reason about geometric and topological constraints, the latter of which is the focus of this work. Mitrano et al. [1] showed that for tasks where obstacle, robot, and environment geome-tries form closed loops, for example a robot grasping a cable threaded through part of the environment, as shown in Fig. 2, explicitly reasoning about toplogical signatures can provide 
+
+> 1
+
+Robotics Department, University of Michigan, Ann Arbor, MI, USA. 
+
+{haoyangw, abhin, dmitryb }@umich.edu 
+
+Fig. 1. Different topological signatures require different motion directions for the same task goal. With the demonstrated signature, our green visual prompt guides the robot directly toward the handle. With an incorrect signature, our cyan prompt guides it around the rack post before approaching the handle. 
+
+goal specifications and constraints for a planner. Specifically, they use the h-signature [2], a topological signature that describes how loops are linked. While more diverse demonstration collection could improve VLA performance without requiring explicit topological rea-soning, fine-tuned policies can still fail. We frame our method as automating the augmentation of a nominal VLA fine-tuning dataset, enabling a large-scale automated version of data collection methods like DAgger [3] through planning in simulation. This allows us to take advantage of the capability of VLAs to operate under partial observability while still incorporating reasoning about topological signatures. While VLA models do include VLM backbones that could be fine-tuned to support topology reasoning, prior work [4], [5] has shown degradation in vision-language reasoning abilities of the VLM backbones after action training. To account for this, we propose a framework that builds upon prior work in VLM prompting of VLAs [6]. We fine-tune a VLM to identify topological signatures from vision inputs and, if the signature differs from the demonstrated signature for the task, output a visual prompt to guide the VLA to recover to the correct signature. This visual prompt takes the form of an annotation drawn on the image that shows the needed end-effector motion to correct the signature. arXiv:2609.23944v1 [cs.RO] 20 Sep 2026 The signature we use is a modification of the h-signature. To ensure the signature is defined even when loops are open, for example, before the robot grasps an object, we adapt the h-signature formulation with virtual links that close open loops, as shown in Fig. 1. We refer to the signature computed from these virtually closed loops as the virtual h-signature. Our contributions are:  
+
+> •
+
+A method for fine-tuning a pre-trained VLM to perform topological signature reasoning.  
+
+> •
+
+A visual-prompting framework that augments VLA inputs with topology-informed guidance, generated by a VLM. We evaluate our method on multiple topologically com-plex bimanual manipulation tasks in simulation, and a box pickup task in the real world. In simulation and in the real world, our method improves success rate over a state-of-the-art VLM prompting baseline [6], which can inadvertently remove toplogically-relevant information from VLA prompts. On hardware, our method outperforms the next best baseline by 40 percentage points. II. R ELATED WORKS 
+
+Our method expands upon prior work on augmenting VLAs through visual prompting, with those prompts being designed by a VLM. To fine-tune the VLM to generate useful prompts, we apply prior work on topological motion planning. 
+
+VLA Policies Recent work has explored large, generalist robot policies trained across diverse tasks and embodiments [7]–[9]. Building on this direction, vision-language-action (VLA) models leverage pretrained vision-language represen-tations to connect semantic understanding with robot control [10]–[12]. In particular, π0 combines a pretrained vision-language backbone with a flow-matching action expert to support general-purpose continuous robot control [12], while 
+
+π0.5 extends this through heterogeneous co-training across robot, semantic, and web data to improve generalization [13]. GR00T N1 couples a vision-language module with adiffusion-transformer action module for generalist humanoid control [14], MolmoAct introduces depth-aware perception and explicit spatial trajectory reasoning before low-level action prediction [15], and MolmoBot trains generalist manipulation policies on large-scale simulated demonstrations for zero-shot transfer to real robots [16]. However, these models still learn a direct mapping from visual observations, robot state, and language to actions. Nominal action supervision may not explicitly distinguish global relationships such as topology when locally similar inputs require different motions. In our experiments, we show that π0 and π0.5 models, even when fine-tuned on the tasks we consider, fail to learn generalizable topology reasoning but can be guided by our prompting framework. 
+
+VLM-Guided Visual Prompting Prior work uses image-space annotations to communicate spatial and motion informa-tion to vision-language models and robot policies. These an-notations include demonstrated trajectories and motion traces, candidate actions for VLM-based selection, and compact visual cues that guide manipulation policies [6], [17]–[20]. These works demonstrate that visual prompts can provide an effective intermediate interface between high-level reasoning and robot control, motivating our approach to distill the VLM’s topological reasoning into visual guidance for the VLA. How-ever, they do not specifically consider topological signatures, leading to failures during task execution. We compare against PEEK [6], a method that attempts to mask out irrelevant parts of observations and draw a path for an end-effector to follow. 
+
+Topology-Guided Motion Planning Prior work has ex-plored motion planning in topologically complex environ-ments, using topological concepts such as homotopy or ho-mology classes to inform search [1], [2], [21]. Other work uses topology to characterize robot–object interactions and manipulation states. Loop-based representations and quanti-ties such as the Gauss linking integral have been used for grasping objects with holes, clasping and hooking, cooperative manipulation, and deformable-object manipulation [2], [22]– [27] These works assume full knowledge of obstacle geome-tries at deployment time. In contrast, while we do assume access to a simulator in which we collect training data, our method does not require a high-fidelity simulation, allowing for discrepancies in obstacle geometries and layouts. Using this approximate simulation, we generate training data that can be deployed in evaluation environments which may differ from the training data generation environments. III. P RELIMINARIES 
+
+The topological structures of interest are homotopy classes of task-relevant loops, defined in Mitrano et al. [1]. Two loops belong to the same homotopy class if one can be continuously deformed into the other without intersecting an obstacle. For manipulation, we construct loops from task-relevant robot, object, and obstacle geometry. We compute this signature by extending the h-signature, defined as the Gauss linking number between a task-relevant robot–object loop and a task-relevant obstacle loop. The linking number is an integer that measures the signed winding of the two closed loops through each other [2]. It is invariant to continuous deformation and can change only when loops pass through one another. The physical robot and object paths in our tasks are open, so we extend the h-signature by connecting endpoints with virtual edges. As shown in Fig. 1, we first trace paths along the robot and manipulated object. Each robot path terminates at an end effector, which is paired with the endpoint of the object path at the corresponding grasp or contact site. These paths and end-point pairings remain fixed across configurations of the task. At each configuration xt, a straight virtual edge connects each paired endpoint. For example, for a bimanual grasp through two handles, the two handles are the endpoints of the object path, and the virtual edges connect them to the corresponding end effectors. The physical paths and virtual edges together form the closed robot–object loop Lt. We represent the task-relevant environmental structure by a separate closed obstacle loop O. The virtual edges represent candidate straight-line end-effector paths to their target contact sites. Including these paths in Lt lets the signature indicate whether straight-line motion is compatible with the demonstrated virtual h-signature or whether the robot must first route around an obstacle. For a configuration xt, its virtual h-signature hv =Lk( Lt, O ), where Lk is the Gauss Linking integral as used in [2]. We define two configurations x and x′ as having the same topological signature if and only if hv (x) = hv (x′).The same definition applies across tasks; only the physical paths, endpoint pairings, and obstacle loop used to construct 
+
+Lt and O change with the task. This signature can therefore represent, for example, whether a cable passes through an aperture or whether a robot–object path is routed around an obstacle, independently of their poses and local geometry. A virtual edge might pass through an obstacle, for example, if an end-effector is below the rack shown in Fig. 1. Abstracting the scene into the Lt and O loops still allows us to compute hv and use it to guide the policy, for example moving the end-effector above the rack to achieve the demonstrated h-signature. IV. P ROBLEM STATEMENT 
+
+We consider manipulation tasks whose success depends on achieving a specific hv . Let xt ∈ X denote the robot–object– environment configuration at time t, and let hvt := hv (xt)
+
+denote its hv -signature at time t. We denote the demonstrated task signature by hv⋆ ∈ Z. Because a mismatch hvt̸ = hv⋆ can prevent direct progress toward the goal, successful execution may require first transitioning the system into the demonstrated signature. We assume that the task-relevant obstacle loop O
+
+is provided by a demonstrator. Given O and a demonstration, we can infer the demonstrated signature hv⋆ .We assume access to a simulator of our tasks, in which we collect data. The simulator need not exactly reproduce the geometry and appearance of the deployment environment, instead serving as an approximate model for computing hv
+
+values given O. O is only used to collect the simulation environment and is not assumed to be known in the real world. From the simulator, we collect an offline dataset 
+
+D = {τi}Ni=1 , τi = {(ot, s t, h vt , a t)}Ti
+
+> t=0
+
+.
+
+Here, ot is the visual observation, st is the robot state, and at denotes the expert action chunk beginning at time t.Each trajectory is also associated with a task instruction ℓ
+
+and demonstrated h-signature hv⋆ . The task-relevant obstacle geometry remains fixed within each rollout and is visible in 
+
+ot. Given D, our goal is to learn a manipulation policy that completes the desired task. To do this, we need a framework that detects whether the current hv matches the demonstrated 
+
+hv and corrects a mismatch when needed. At deployment, hvt is not observed. We assume that ot
+
+contains sufficient visual information to infer hvt . Nevertheless, configurations with similar local geometry can have different 
+
+hv and require qualitatively different manipulation strategies. Therefore, geometric proximity alone may not determine how the robot should progress toward the task goal. We evaluate a policy by its closed-loop task success rate, which measures whether it resolves hv mismatches when necessary and com-pletes the manipulation task.    
+
+> Fig. 2. Successful and failed cable-threading rollouts. In (a), πbase moves the cable tip toward the goal while leaving it outside the loop. In (b), the cable passes through the target loop before reaching the purple goal.
+
+V. M ETHOD 
+
+A standard VLA maps visual observations, robot state, and a language instruction directly to robot motion. In our setting, this mapping is ambiguous because similar visual inputs under the same instruction can correspond to different signatures and require different motions. By augmenting the observation input to the VLA, our method resolves this ambiguity. At a high level, we use a VLM to reason about the hv -signature and, based on this reasoning, provide visual prompts that guide the VLA. Fig. 3 summarizes this architecture. We describe topology-aware demonstration generation in Sec. V-A, con-struction of the visual prompts in Sec. V-B, and VLM training and closed-loop guidance in Sec. V-C. 
+
+A. hv -Aware Demonstration Generation 
+
+Our goal is to augment nominal demonstrations Dnominal 
+
+with a correction dataset Dcorr which moves configurations to the demonstrated hv , and a continuation dataset Dcont , which resumes task progress after correction, resulting in dataset 
+
+Dtrain = Dnominal ∪ D corr ∪ D cont . (1) We first train a base policy, πbase , by fine-tuning a pretrained VLA on a nominal demonstration dataset Dnominal . These demonstrations cover successful task execution from random-ized initial configurations, but they do not include explicit hv
+
+annotations or targeted recovery behaviors for correcting hv
+
+mismatches. As a result, πbase captures the nominal manip-ulation skills required for task completion, while leaving hv -specific recovery behaviors underrepresented. Being in the incorrect hv could lead to a collision or block progress toward the goal. For example, as shown in Fig. 2, a robot might move the cable tip toward the goal while leaving it outside the target loop. To augment the dataset with more diverse trajectories, we execute πbase in closed loop in simulation using the visual observation, robot state, and task instruction, and perturb states encountered along these rollouts. Privileged hv labels from the simulator assign each perturbation resulting in a collision-free configuration to the appropriate recovery-data branch. The complete collection procedure is summarized in Algorithm 1. At each collection step, P ERTURB STATE adds Gaussian noise to the current end-effector position, and a low-level Fig. 3. Overview of the training and deployment pipelines. During training, hv -correction and task-continuation trajectories augment the nominal demonstrations used to supervise the VLA and VLM. At deployment, the VLM first predicts the current hv and then predicts image-space waypoints. At each policy update, these waypoints are rendered on the current observation to guide the VLA’s next action chunk. 
+
+Algorithm 1: hv -Aware Demonstration Generation 
+
+Input: Base VLA πbase , simulator E, demonstrated h-signature hv⋆ 
+
+Output: Correction data Dcorr and continuation data 
+
+Dcont 
+
+Dcorr , Dcont ← ∅ 
+
+foreach task instance do 
+
+Initialize the task state x0
+
+while the nominal rollout is active do 
+
+Execute πbase to obtain the next state xt
+
+˜xt ← PERTURB STATE (xt)
+
+if ˜xt̸ = ∅ then 
+
+Compute hv (˜ xt) using the simulator 
+
+if hv (˜ xt)̸ = hv⋆ then 
+
+τcorr ← CORRECT SIGNATURE (˜ xt, h v⋆ )
+
+if τcorr = ∅ then continue 
+
+Dcorr ← D corr ∪ { τcorr }
+
+τcont ← CONTINUE TASK (x+, π base , h v⋆ )
+
+if τcont ̸ = ∅ then 
+
+Dcont ← D cont ∪ { τcont }
+
+else continue 
+
+controller moves the end effector toward the resulting target to produce ˜xt. This motion is used only to construct the perturbed configuration and is not in the training dataset. Unreachable targets are discarded. For each perturbation resulting in a collision-free configuration, the simulator computes hv (˜ xt)
+
+and compares it with the demonstrated label hv⋆ .When hv (˜ xt)̸ = hv⋆ , C ORRECT SIGNATURE searches for a motion that is collision-free with respect to the physical robot, object, and environment and that changes the label to the demonstrated class. We sample candidate Cartesian targets around the active end effector and use the workspace-goal-directed RRT formulation of Vande Weghe et al. [28] to plan a collision-free joint-space trajectory to each target. Each resulting trajectory is executed in simulation and retained only if its terminal configuration x+ satisfies h(x+) = hv⋆ . When multiple valid corrections are found, we select the trajectory with the shortest end-effector path length. After C ORRECT SIGNATURE changes a mismatched config-uration to a corrected state x+, this state may lie outside the distribution covered by the nominal demonstrations. C ONTIN -
+
+> UE
+
+TASK therefore executes πbase from x+ and checks whether it reaches the next task subgoal while maintaining h(x) = hv⋆ .If the base VLA succeeds, C ONTINUE TASK returns ∅, no continuation demonstration is added, and data collection pro-ceeds to the next state of the nominal rollout. If the base VLA fails, a low-level end-effector IK controller generates a fallback continuation trajectory. We add only this fallback trajectory to 
+
+Dcont , provided that it reaches the subgoal while maintaining 
+
+h(x) = hv⋆ . Otherwise, no continuation demonstration is added. If perturbation or correction fails, no demonstration is added for that candidate. We train the final policy, πVLA , as a separate fine-tuning run initialized from the original pretrained VLA rather than from 
+
+πbase . All trajectories in Dtrain are pooled without balancing or reweighting the three data sources. We describe how these end-effector trajectories are converted into visual prompts for VLM training below. 
+
+B. Visual Prompt Construction 
+
+We separate topology reasoning from action prediction because jointly adapting a VLM for reasoning and robot actions can degrade its pretrained reasoning capabilities [4], [5]. Following prior work on trajectory annotations [17], [18], we communicate hv guidance through image-space drawings without modifying the VLA architecture. We convert the end-effector trajectories generated in Sec. V-A into image-space drawings that are overlaid on the VLA’s visual observations. At each timestep, we project the desired end-effector motion onto the image from the scene camera. We denote the ordered image-space waypoint coordinates by Wt. A deterministic renderer connects these waypoints in temporal order and adds an arrowhead to indicate the direction of motion. We overlay this drawing on the visual observation ot to obtain the prompted observation eot.We construct visual prompts for both hv -correction and task-continuation trajectories. hv -correction trajectories are rendered as arrows depicting the motion required to reach 
+
+hv∗. These prompts consist of full trajectories and are capable of representing non-linear end-effector motion, for example a curved path around the post of a rack, by using multiple waypoints. Task-continuation trajectories are rendered as ar-rows in a different color from the topology-correction arrows, pointing toward the next task subgoal, such as a grasp loca-tion. Nominal task demonstrations are left unmodified. Each prompted observation eot is paired with the expert action chunk 
+
+at, allowing the VLA to learn how image-space guidance maps to continuous control. The projected waypoint coordinates Wt
+
+also serve as supervision targets for the VLM described in the next subsection. Privileged quantities, including hvt and three-dimensional planning targets, are not provided to the policy. 
+
+C. Closed-Loop VLM Guidance 
+
+We train the VLA using drawings constructed from privi-leged hv labels and expert trajectories, which are unavailable at deployment. We therefore train a single VLM to recognize the current hv from camera observations and then predict the image-space waypoint coordinates. We separate these tasks because hv labels are easier to obtain than expert trajectories. We train the VLM with two types of supervised examples: 1) hv -prediction examples pair a visual observation ot with its simulator-provided label hvt ; and 2) Waypoint-prediction examples pair (ot, ℓ, h vt , h v⋆ ) with the ordered image-space coordinates Wt constructed in Sec. V-B. Here, hvt provides the ground-truth current signature during training, and hv⋆ 
+
+specifies the demonstrated signature. For nominal training states, the waypoint target is an empty sequence. At deployment, we query the same VLM twice. We denote the hv and waypoint calls by fhv and fway . The first call predicts the virtual h-signature from the visual observation, 
+
+bhvt = fhv (ot).
+
+Because the ground-truth current label is unavailable at de-ployment, the second call uses bhvt with the visual observation, task instruction, and known demonstrated signature hv⋆ ,
+
+cWt = fway (ot, ℓ, bhvt , h v⋆ ).
+
+The output is an ordered sequence of image-space waypoint coordinates. We render these coordinates as an arrow using the same visual conventions employed during VLA training, then overlay the resulting transparent layer on ot to obtain eot. An empty waypoint sequence leaves the observation unchanged. The VLA then maps the prompted observation, robot state, and original task instruction to a continuous action chunk, 
+
+bat:t+Ha−1 = πVLA (eot, s t, ℓ ) ,
+
+where Ha is the action-chunk horizon. After executing each predicted chunk, we acquire a new observation and repeat both VLM calls. This closed-loop process updates the drawing along task progress. VI. R ESULTS 
+
+Our experiments address four questions. Does our method improve task performance across different hv⋆ values and VLA backbones, remain effective when only one hv is possible, and transfer to real hardware? We evaluate Cable Threading and Box Pickup as tasks with multiple possible hv
+
+values, Rope Pulling as a task with only a single possible hv ,and Box Pickup on hardware to assess real-world feasibility. 
+
+A. Evaluation Tasks 
+
+We consider three tasks in simulation: Rope Pulling, Cable Threading, and Box Pickup. For all tasks, we design simulation environments and task execution oracles to autonomously generate data for VLA and VLM fine-tuning. 
+
+1) Rope Pulling: Fig. 4(a) shows a representative initial observation. We evaluate each method over 50 trials with randomized rope, goal, and robot configurations. Because the rope tip begins beyond the robot’s reachable workspace, the robot alternates arms to grasp and pull it into the goal region. Since hvt = 0 throughout, no signature correction is required. This task tests whether our pipeline remains compatible with general learning without degrading nominal performance. 
+
+2) Cable Threading: Fig. 4(b) shows a representative initial observation. We evaluate each method over 100 simulation trials. Cable Threading requires a transition from hv 
+
+> 0
+
+= 0 ,where the cable has not passed through the target loop, to 
+
+hv⋆ = 1 . Its free tip is initially held by the right gripper on one side of the loop, with the left gripper near the opposite side. We randomize the cable configuration, robot configuration, and target-loop position across trials. Because moving the tip around the loop may bring it near the goal without achieving the required signature, the oracle passes the tip through the loop with the right gripper, secures it with the left gripper, and releases it with the right gripper. The left arm then pulls the tip toward the goal. A trial succeeds when the cable remains through the loop and its tip reaches the purple goal region without being dropped. (a) Rope Pulling (b) Cable Threading (c) Box Pickup                              
+
+> Fig. 4. Representative initial simulation observations for (a) Rope Pulling, (b) Cable Threading, and (c) Box Pickup. TABLE I TASK SUCCESS RATES (%) IN SIMULATION .BASE POLICY REFERS TO THE BACKBONE FINE -TUNED ON Dnominal .
+> VLA backbone Task Method π0[12] π0.5[13] Rope Pulling Base Policy 70 52 PEEK [6] 54 50 Ours 66 64 Cable Threading Base Policy 49 47 PEEK [6] 13 20 Ours 71 77
+> Box Pickup Base Policy 31 45 PEEK [6] 57 66 Ours 84 82
+
+3) Box Pickup: Fig. 4(c) shows an initial observation in simulation. We evaluate each method over 100 simulation trials and 30 real-world trials. Box Pickup requires correcting 
+
+hv 
+
+> 0
+
+= 1 to hv⋆ = 0 before lifting the box. The box begins within a rack, with both grippers outside its two handle openings. We randomize the rack size, box position, and robot configuration across trials. In trials with hv 
+
+> 0
+
+= 1 , the right arm lies between the rack posts, so moving directly toward its handle would cause a collision. The robot must first route the arm around the posts to reach hvt = 0 , then approach the handles, pass each gripper through its corresponding opening, and lift the box. A trial succeeds when the box clears the rack while maintaining the demonstrated signature and both grasps. 
+
+B. Implementation Details 
+
+We use π0 [12] and π0.5 [13] as VLA backbones and Qwen3-VL-8B-Instruct [29] for both VLM calls. For each backbone, the base policy, PEEK, and our method use the same VLA training configuration. We fine-tune each VLA for 20,000 steps with a global batch size of 32, a learning rate of 5 × 10 −5, and 1,000 warm-up steps. We use a 10-step action horizon, 224 × 224 images, bfloat16 precision, and LoRA [30] ranks of 16 for the 2B vision-language backbone and 32 for the 300M action expert. Training uses four NVIDIA A40 GPUs. During execution, all 10 actions in a predicted chunk are completed before the next VLM and VLA update. We fine-tune the VLM for hv and waypoint prediction for one epoch using LoRA [30] with rank 8 and α = 16 . Training uses a global batch size of 32 across four NVIDIA A40 GPUs, a 4,096-token context, at most 262,144 image pixels, FP16 precision, and a cosine schedule with 10% warm-up. The learning rate is 5 × 10 −5 for Box Pickup and 1 × 10 −4 for Cable Threading. 
+
+C. Simulation Results 1) Quantitative Results: We use the same baselines and evaluation metrics for all three simulated tasks. For each VLA backbone, π0 [12] and π0.5 [13], we compare the base policy trained without data augmentation or additional annotations, PEEK [6], and our hv -guided visual prompting. Table I reports task success rates for each method and backbone. On Rope Pulling, our method performs comparably to the base policies and exceeds PEEK [6] by 12–14% across backbones, demonstrating compatibility with tasks with no signature correction. PEEK’s lower performance is likely because Rope Pulling repeatedly alternates arms that grasp and pull the rope, making it hard to decompose the end effectors’ interleaved motions. On Cable Threading, our method exceeds the base poli-cies by 22–30% and PEEK [6] by 57–58% across the two backbones. These gains support the proposed pipeline for execution requiring a transition to hv⋆ = 1. As in Rope Pulling, PEEK again struggles to distinguish the two arms during alternating motions. Here, execution must additionally respect the relationship between the robot–object and obstacle loops, making correct motion selection essential. On Box Pickup, our method improves task exceeds the base policies by 37–53% and PEEK [6] by 16–27% across the two backbones. Together with Cable Threading, these results support the pipeline’s applicability to tasks requiring different demonstrated signatures, including correction to hv⋆ = 0,rather than only a single type of transition. To isolate signature recognition from task execution, we evaluate virtual hv -signature prediction on 100 randomly sam-pled unseen configurations per task. Table II reports accuracy for each VLM trained on augmented data generated with its corresponding VLA backbone. Box Pickup accuracy is 16– 18% higher than Cable Threading. This is consistent with Box Pickup’s higher task success and suggests that accurate signature estimation is correlated with better performance. TABLE II VLM PREDICTION ACCURACY (%) FOR THE VIRTUAL hv -SIGNATURE ON UNSEEN SIMULATION CONFIGURATIONS .VLA backbone Task π0 [12] π0.5 [13] Cable Threading 74 76 Box Pickup 92 92 
+
+2) Qualitative Results: Our method overlays topology-informed motion prompts on the original observation, preserv-ing both the manipulation target and the surrounding obstacle geometries that constrain how it can be reached. The rele-vance of those geometries differs across tasks. Rope Pulling requires repeated grasping and pulling without modifying the topological signature. In Cable Threading and Box Pickup, however, the relationship between the robot–object loop and the obstacle loop determines whether the robot can approach the target directly or must first modify hv .The comparison with PEEK [6] illustrates the consequences of excluding this scene context. PEEK [6] emphasizes ma-nipulated objects and subtrajectory goals but can mask ge-ometry required for signature reasoning. Its masks omit the obstacle loop in Cable Threading and the relevant rack posts in Box Pickup, as shown in Fig.5(a). Our method preserves this geometry in Fig.5(b). Rope Pulling has no task-relevant obstacle loop and is consequently less sensitive to this loss of context, helping explain PEEK’s smaller performance drop. Together, these results suggest that visual guidance should preserve structures that constrain the motion, even when they are not themselves manipulation targets. 
+
+D. Real-World Results 
+
+To run the Box Pickup task on hardware, we apply visual domain randomization to the colors and textures of scene objects and to the camera positions and viewing angles. To address residual sim-to-real mismatch in reaching the box handles, we collect 15 short real-world trajectories demon-strating precise approaches to the handles for lifting the box. We also collect three hv -correction trajectories to reduce the risk of overfitting to the reaching demonstrations. Both the baselines and our VLA are further fine-tuned on these 18 trajectories, whose total frame count is 3% of that in the collected simulation data. For VLM adaptation, we human-label the hv signature in observations from 1,000 random real-world configurations. We fine-tune the VLM on these labeled observations, which con-stitute approximately 5% of its total training data. During real-world execution, once the end effectors reach the designated handle regions, a low-level controller directly lifts the box. We do not fine-tune the PEEK VLM, as doing so would require full demonstrations on hardware which we do not assume we have. As such, our method does not rely on hardware tele-operation data which may be challenging to collect, especially for bimanual manipulation. At the same time, we can utilize cheaper-to-collect hv -annotated data. 
+
+1) Quantitative Results: We report overall task success and hv -correction success, which measures transition from an                 
+
+> Fig. 5. Visual prompting for Box Pickup in simulation with (a) PEEK and (b) ours, and on hardware with (c) PEEK and (d) ours. PEEK masks out task-relevant rack geometry, whereas our method preserves this context and provides appropriate visual prompts TABLE III REAL -WORLD BOX PICKUP RESULTS . B ASE POLICY REFERS TO THE VLA
+> BACKBONE FINE -TUNED ON Dnominal .Method Overall task success (%)
+> hv-correction success (%) Base policy π0[12] 20 30 PEEK [6] 320 Ours 60 83
+
+initially incorrect to the demonstrated signature. Our method achieves 60% task success and 83% correction success, ex-ceeding the strongest baselines by 40 and 53 percentage points, respectively, as shown in Table III. The correction gain demonstrates that topology-guided prompting effectively resolves signature mismatches, while the task-success gain shows that these corrections translate into substantially better task completion on hardware. 
+
+2) Qualitative Results: Fig. 5 compares the visual prompts produced by PEEK and our method. In configurations with an incorrect signature, the nominal VLA frequently reaches di-rectly toward the handle without moving around the rack post. This behavior resembles the direct approach demonstrated from training configurations with the demonstrated signature, but leads to obstruction in these real world initial states. The VLM trained using PEEK [6] similarly directs the end effector toward the handle without providing guidance around the post. In contrast, our method recognizes the incorrect signature and guides the arm around the post before approaching the handle. We also observe recovery from incorrect signature predic-tions during execution. In some trials, our method initially predicts the signature incorrectly and directs the end effector toward the handle. At a subsequent observation update, it revises the prediction and redirects the arm around the post. This illustrate how repeated signature prediction and visual-prompt updates can correct an initially inappropriate motion. VII. C ONCLUSION 
+
+We presented a topology-guided visual-prompting frame-work that combines planning in an approximate simulator with vision-based manipulation. Privileged simulator geom-etry supports the generation of signature-correction and task-continuation demonstrations for VLA fine-tuning. At deploy-ment, a fine-tuned VLM predicts task-relevant signatures and end-effector waypoints, providing visual guidance without requiring full environment geometry. Across three simulated bimanual tasks and real-world box pickup, our method out-performs a VLM-prompting baseline and improves hardware task success by 40% over the strongest baseline. These results support using explicit signature reasoning to distinguish con-figurations requiring different motions, while preserving the scene context needed for execution. REFERENCES [1] P. Mitrano and D. Berenson, “The grasp loop signature: A topological representation for manipulation planning with ropes and cables,” in 
+
+ICRA , 2024. [2] S. Bhattacharya, M. Likhachev, and V. Kumar, “Topological constraints in search-based robot path planning,” Autonomous Robots , 2012. [3] S. Ross, G. Gordon, and D. Bagnell, “A reduction of imitation learning and structured prediction to no-regret online learning,” in Proceedings of the fourteenth international conference on artificial intelligence and statistics . JMLR Workshop and Conference Proceedings, 2011. [4] A. J. Hancock, X. Wu, L. Zha, O. Russakovsky, and A. Majumdar, “Actions as language: Fine-tuning vlms into vlas without catastrophic forgetting,” arXiv preprint arXiv:2509.22195 , 2025. [5] S. Yang, H. Li, B. Wang, Y. Chen, Y. Tian, T. Wang, H. Wang, F. Zhao, Y. Liao, and J. Pang, “Instructvla: Vision-language-action instruction tuning from understanding to manipulation,” arXiv preprint arXiv:2507.17520 , 2025. [6] J. Zhang, M. Memmel, K. Kim, D. Fox, J. Thomason, F. Ramos, E. Bıyık, A. Gupta, and A. Li, “Peek: Guiding and minimal image rep-resentations for zero-shot generalization of robot manipulation policies,” 
+
+arXiv preprint arXiv:2509.18282 , 2025. [7] A. Brohan, N. Brown, J. Carbajal, Y. Chebotar, J. Dabis, C. Finn, K. Gopalakrishnan, K. Hausman, A. Herzog, J. Hsu et al. , “Rt-1: Robotics transformer for real-world control at scale,” arXiv preprint arXiv:2212.06817 , 2022. [8] A. O’Neill, A. Rehman, A. Maddukuri, A. Gupta, A. Padalkar, A. Lee, A. Pooley, A. Gupta, A. Mandlekar, A. Jain et al. , “Open x-embodiment: Robotic learning datasets and rt-x models: Open x-embodiment collab-oration 0,” in ICRA , 2024. [9] O. M. Team, D. Ghosh, H. Walke, K. Pertsch, K. Black, O. Mees, S. Dasari, J. Hejna, T. Kreiman, C. Xu et al. , “Octo: An open-source generalist robot policy,” arXiv preprint arXiv:2405.12213 , 2024. [10] A. Brohan, N. Brown, J. Carbajal, Y. Chebotar, X. Chen, K. Choroman-ski, T. Ding, D. Driess, A. Dubey, C. Finn et al. , “Rt-2: Vision-language-action models transfer web knowledge to robotic control,” arXiv preprint arXiv:2307.15818 , 2023. [11] M. J. Kim, K. Pertsch, S. Karamcheti, T. Xiao, A. Balakrishna, S. Nair, R. Rafailov, E. Foster, G. Lam, P. Sanketi et al. , “Openvla: An open-source vision-language-action model,” arXiv preprint arXiv:2406.09246 ,2024. [12] K. Black, N. Brown, D. Driess, A. Esmail, M. Equi, C. Finn, N. Fusai, L. Groom, K. Hausman, B. Ichter et al. , “ π0: A vision-language-action flow model for general robot control,” arXiv preprint arXiv:2410.24164 ,2024. [13] P. Intelligence, K. Black, N. Brown, J. Darpinian, K. Dhabalia, D. Driess, A. Esmail, M. Equi, C. Finn, N. Fusai, M. Y. Galliker, D. Ghosh, L. Groom, K. Hausman, B. Ichter, S. Jakubczak, T. Jones, L. Ke, D. LeBlanc, S. Levine, A. Li-Bell, M. Mothukuri, S. Nair, K. Pertsch, A. Z. Ren, L. X. Shi, L. Smith, J. T. Springenberg, K. Stachowicz, J. Tanner, Q. Vuong, H. Walke, A. Walling, H. Wang, L. Yu, and U. Zhilinsky, “ π0.5: a vision-language-action model with open-world generalization,” 2025. [Online]. Available: https://arxiv.org/abs/2504.16054 [14] NVIDIA, :, J. Bjorck, F. Casta˜ neda, N. Cherniadev, X. Da, R. Ding, L. J. Fan, Y. Fang, D. Fox, F. Hu, S. Huang, J. Jang, Z. Jiang, J. Kautz, K. Kundalia, L. Lao, Z. Li, Z. Lin, K. Lin, G. Liu, E. Llontop, L. Magne, A. Mandlekar, A. Narayan, S. Nasiriany, S. Reed, Y. L. Tan, G. Wang, Z. Wang, J. Wang, Q. Wang, J. Xiang, Y. Xie, Y. Xu, Z. Xu, S. Ye, Z. Yu, A. Zhang, H. Zhang, Y. Zhao, R. Zheng, and Y. Zhu, “Gr00t n1: An open foundation model for generalist humanoid robots,” 2025. [Online]. Available: https://arxiv.org/abs/2503.14734 [15] J. Lee, J. Duan, H. Fang, Y. Deng, S. Liu, B. Li, B. Fang, J. Zhang, Y. R. Wang, S. Lee, W. Han, W. Pumacay, A. Wu, R. Hendrix, K. Farley, E. VanderBilt, A. Farhadi, D. Fox, and R. Krishna, “Molmoact: Action reasoning models that can reason in space,” 2025. [Online]. Available: https://arxiv.org/abs/2508.07917 [16] A. Deshpande, M. Guru, R. Hendrix, S. Jauhri, A. Eftekhar, R. Tripathi, M. Argus, J. Salvador, H. Fang, M. Wallingford, W. Pumacay, Y. Kim, Q. Pfeifer, Y.-C. Lee, P. Wolters, O. Rayyan, M. Zhang, J. Duan, K. Farley, W. Han, E. Vanderbilt, D. Fox, A. Farhadi, G. Chalvatzaki, D. Shah, and R. Krishna, “Molmob0t: Large-scale simulation enables zero-shot manipulation,” 2026. [Online]. Available: https://arxiv.org/abs/2603.16861 [17] J. Gu, S. Kirmani, P. Wohlhart, Y. Lu, M. G. Arenas, K. Rao, W. Yu, C. Fu, K. Gopalakrishnan, Z. Xu et al. , “Rt-trajectory: Robotic task generalization via hindsight trajectory sketches,” arXiv preprint arXiv:2311.01977 , 2023. [18] R. Zheng, Y. Liang, S. Huang, J. Gao, H. Daum´ e III, A. Kolobov, F. Huang, and J. Yang, “Tracevla: Visual trace prompting enhances spatial-temporal awareness for generalist robotic policies,” in ICLR ,2025. [19] Y. Li, Y. Deng, J. Zhang, J. Jang, M. Memmel, C. Garrett, F. Ramos, D. Fox, A. Li, A. Gupta et al. , “Hamster: Hierarchical action models for open-world robot manipulation,” in ICLR , 2025. [20] S. Nasiriany, F. Xia, W. Yu, T. Xiao, J. Liang, I. Dasgupta, A. Xie, D. Driess, A. Wahid, Z. Xu et al. , “Pivot: Iterative visual prompting elic-its actionable knowledge for vlms,” arXiv preprint arXiv:2402.07872 ,2024. [21] F. T. Pokorny, D. Kragic, L. E. Kavraki, and K. Goldberg, “High-dimensional winding-augmented motion planning with 2d topological task projections and persistent homology,” in ICRA , 2016. [22] F. T. Pokorny, J. A. Stork, and D. Kragic, “Grasping objects with holes: A topological approach,” in ICRA , 2013. [23] J. A. Stork, F. T. Pokorny, and D. Kragic, “A topology-based object representation for clasping, latching and hooking,” in Humanoids , 2013. [24] A. Marzinotto, J. A. Stork, D. V. Dimarogonas, and D. Kragic, “Cooper-ative grasping through topological object representation,” in Humanoids ,2014. [25] J. A. Stork, F. T. Pokorny, and D. Kragic, “Integrated motion and clasp planning with virtual linking,” in IROS , 2013. [26] W. H. Lui and A. Saxena, “Tangled: Learning to untangle ropes with rgb-d perception,” in IROS , 2013. [27] M. Sudry, T. Jurgenson, A. Tamar, and E. Karpas, “Hierarchical planning for rope manipulation using knot theory and a learned inverse model,” in CoRL , 2023. [28] M. Vande Weghe, D. Ferguson, and S. S. Srinivasa, “Randomized path planning for redundant manipulators without inverse kinematics,” in 
+
+Humanoids , 2007. [29] S. Bai, Y. Cai, R. Chen, K. Chen, X. Chen, Z. Cheng, L. Deng, W. Ding, C. Gao, C. Ge et al. , “Qwen3-VL technical report,” arXiv preprint arXiv:2511.21631 , 2025. [30] E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, and W. Chen, “Lora: Low-rank adaptation of large language models,” 
+
+arXiv preprint arXiv:2106.09685 , 2021.
