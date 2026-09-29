@@ -1,0 +1,1283 @@
+RCVLA: 4D RADAR-GROUNDED SEMANTIC REA-
+SONING AND TRAJECTORY ARBITRATION FOR AU-
+TONOMOUS DRIVING
+Lianqing Zheng1,*, Xiaokai Bai2,*, Yixuan Luo2, Runwei Guan3, Minghao Liu4,
+Zhiqiang Wei5, Hui-liang Shen2, Xichan Zhu1, Zhixiong Ma1,†
+1Tongji, 2ZJU, 3HKUST, 4UTokyo, 5SJTU
+*Equal Contribution. †Corresponding Author.
+TJRadarLab@163.com
+ABSTRACT
+4D radar provides geometric and motion cues that complement visual seman-
+tics, but integrating it into vision-language-action (VLA) models requires both
+radar–language alignment for semantic reasoning and explicit use of radar mea-
+surements for trajectory refinement and selection. To support these capabilities,
+we construct Cap4DR with 86,016 radar-image-text samples for alignment pre-
+training and OmniHD-QA with 520,161 question-answer pairs for instruction tun-
+ing across scene description, key-object reasoning, occupancy understanding, and
+trajectory planning. Building on these datasets, we propose RCVLA, a radar-
+camera VLA framework consisting of a radar-grounded semantic reasoning stage
+(RCVLA-Sem) and a trajectory arbitration stage (RCVLA-Phys). RCVLA-Sem
+performs gated bidirectional interaction between camera and radar tokens for driv-
+ing question answering and reference trajectory generation, while auxiliary heads
+provide object and occupancy queries. RCVLA-Phys refines reference-guided tra-
+jectory candidates through truncated diffusion conditioned on these queries and
+cluster-level radar measurements, then calibrates candidate scores using radar-
+derived time-to-collision risk. On OmniHD-QA, RCVLA-Sem improves CIDEr
+by 9.92 points and reduces key-object velocity error by 21.9% relative to Om-
+niDrive. RCVLA-Phys further reduces average L2 error from 0.348 to 0.259 m
+and average open-loop collision rate from 0.576% to 0.175% relative to RCVLA-
+Sem. Ablation studies further show that language-aligned radar tokens improve
+semantic reasoning, while cluster-level radar measurements and risk calibration
+improve trajectory arbitration. Code will be released.
+1
+INTRODUCTION
+Recent vision-language-action (VLA) models for autonomous driving couple language-based scene
+reasoning with driving decisions and motion planning (Sima et al., 2024; Wang et al., 2025; Jiang
+et al., 2026). However, camera-centric VLA models infer geometry and motion primarily from
+visual observations, which can become unreliable under degraded visibility (Bijelic et al., 2020).
+4D radar supplies spatial measurements and Doppler-derived radial velocity that complement visual
+semantics (Palffy et al., 2022; Zhang et al., 2023; Choi et al., 2023).
+Integrating 4D radar into VLA models raises two challenges. First, standard image–text pretrain-
+ing does not provide 4D radar–language alignment, motivating dedicated alignment supervision and
+driving instruction data. Second, semantic reasoning and trajectory planning require different 4D
+radar representations. Compact language-aligned tokens provide an interface for scene reasoning
+(Li et al., 2023), while trajectory refinement and selection rely on local geometric and motion mea-
+surements. We therefore retain cluster-level radar measurements to guide candidate refinement and
+risk-aware selection, which together constitute trajectory arbitration.
+1
+arXiv:2609.32681v1  [cs.CV]  26 Sep 2026
+
+
+Planner
+VLM
+QA
+Prompt
+Multi-view
+Image
+End-to-End
+Traj/Decision
+(a) Dual-System VLA
+(b) Perception-enhanced VLA
+☑Reasoning
+❎Structured features
+❎Radar-guided Refine
+QA
+Prompt
+Multi-view 
+Image
+Planner
+☑Reasoning
+☑Structured features
+❎Radar-guided Refine
+Perception
+VLM
+(b) RCVLA (Ours)
+QA
+Prompt
+VLM
+Multi-view 
+Image
+Perception
+Multi-view 
+4D Radar
+Traj
+Structured
+Queries
+Trajectory 
+Arbitration
+Structured Queries
+OD Queries
+4D Radar Inst.
+Occ Queries
+☑Reasoning
+☑Structured features
+☑Radar-guided Refine
+output
+output
+output
+Figure 1: Architectural comparison. (a) Dual-system VLA links language reasoning to a sepa-
+rate end-to-end model. (b) Perception-enhanced VLA incorporates structured scene features. (c)
+RCVLA combines a semantic reference, structured scene queries, and 4D radar measurements for
+trajectory refinement and risk-aware selection.
+To address these challenges, we construct two datasets and develop RCVLA. Cap4DR contains
+86,016 4D radar-image-text samples for radar–language alignment pretraining, with 4D radar rele-
+vant entities verified through multi-model cross checking and selective manual review. OmniHD-
+QA contains 520,161 question-answer pairs derived from OmniHD-Scenes (Zheng et al., 2026b),
+covering scene description, key-object reasoning, occupancy understanding, and trajectory planning
+for instruction tuning and evaluation. Building on these datasets, RCVLA integrates radar-grounded
+semantic reasoning with trajectory arbitration. As illustrated in Figure 1, we compare three VLA
+designs. Dual-system VLA couples language reasoning with a separate end-to-end model, while
+perception-enhanced VLA further incorporates structured scene features. RCVLA instead com-
+bines a reference trajectory from semantic reasoning, structured scene queries, and direct 4D radar
+measurements for trajectory refinement and risk-aware selection.
+Specifically, RCVLA-Sem performs gated bidirectional interaction between camera and 4D radar
+tokens for driving question answering and reference trajectory generation, while auxiliary object and
+occupancy heads provide structured scene queries. RCVLA-Phys constructs a compact candidate
+set from the reference trajectory and anchors, then refines it through truncated diffusion conditioned
+on these queries and cluster-level radar measurements. The retained measurements further yield
+time-to-collision (TTC)-based risk estimates that calibrate candidate scores for risk-aware selection.
+Our contributions are summarized below.
+• We construct Cap4DR and OmniHD-QA, providing complementary supervision for radar–
+language alignment pretraining, multitask driving instruction tuning, and evaluation.
+• We propose RCVLA, a radar-camera VLA framework that uses 4D radar in complementary roles
+for semantic reasoning and trajectory arbitration. RCVLA-Sem integrates camera and radar to-
+kens for driving question answering and reference trajectory generation, while RCVLA-Phys re-
+fines trajectory candidates using structured scene queries and cluster-level radar measurements,
+with radar-derived TTC risk guiding candidate selection.
+• Experiments on OmniHD-QA demonstrate improvements in semantic reasoning and open-loop
+planning over the evaluated baselines. Ablations further validate the complementary roles of
+language-aligned radar tokens in scene reasoning and preserved physical measurements in trajec-
+tory refinement and risk-aware selection.
+2
+RELATED WORK
+2.1
+PLANNING-ORIENTED END-TO-END DRIVING
+End-to-end driving predicts driving actions or future trajectories directly from sensor observations
+within a unified framework. ST-P3 integrates perception, prediction, and planning with a shared
+spatio-temporal representation (Hu et al., 2022b), while UniAD coordinates multiple driving tasks
+through a unified query interface (Hu et al., 2023). BEV-Planner studies the role of ego-state in-
+formation in open-loop planning (Li et al., 2024), while DiffusionDrive uses trajectory anchors and
+truncated diffusion to generate diverse future trajectories (Liao et al., 2025). These methods connect
+2
+
+
+This is an urban road scene where two cyclists are moving 
+ahead in the same lane. The road is flanked by a 
+continuous guardrail on the left and another guardrail on 
+the right, with several poles positioned along the right side.
+This is an urban road scene. A car is moving in the 
+lane to the left. Further ahead in the current lane, 
+there are two distant cars. On the far left, another 
+car is present behind a guardrail. The road is lined 
+with guardrails on the left and poles on both sides.
+This is an urban road with a cyclist traveling ahead in the same lane, and 
+a car is visible in the far distance. The road is flanked by a guardrail and a 
+pole on the left, with bus stop shelters located on both sides.
+This is a narrow urban street with a cyclist moving 
+ahead and two pedestrians on the right. A row of 
+parked cars lines the left side of the road, where 
+several poles are also present. The right side is 
+bordered by a continuous building facade.
+On this multi-lane road, a large vehicle is 
+driving directly ahead, followed by a car in 
+the distance. Two pedestrians are on the right 
+sidewalk. The road is bordered by a guardrail 
+and poles on the left, with a bus stop and 
+additional poles on the right.
+This is an urban road under an overpass. A car is stopped directly 
+ahead, with another car in the lane to the immediate right. Multiple 
+other cars are present in the lanes further to the right and ahead. On 
+the left, there is a concrete median with poles and the supporting 
+pillars for the overpass.
+Caption-QA
+Object-QA
+Occupancy-QA
+Planning-QA
+What is obstructing the 
+road directly ahead?
+Directly ahead, the road is 
+partially blocked by a 
+construction zone marked 
+with red and white barrels, 
+forcing the lane to narrow.
+what is the status of the 
+distant traffic light?
+The traffic light at the 
+intersection further down 
+the road is red.
+Identify the rider at 13 meters 
+ahead, 3 meters to the right. What 
+is its current velocity and 
+intention relative to your vehicle?
+Velocity: {7.5, -1.1}, 
+Intention: {turning right}.
+You are driving the ego vehicle. Current 
+speed: 7.9 m/s. The command is to turn 
+right. Please provide a safe, executable, 
+and reasonable planning trajectory for 
+the ego vehicle
+Here is the planning trajectory [PT, (3.78, 
+-0.06), (7.44, -0.27), (11.08, -0.65), (14.68, 
+-1.22), (18.28, -1.93), (21.86, -2.79)].
+You are driving the ego vehicle. Is 
+the area front-left-adjacent-lane at 
+0-10m occupied by any obstacles? 
+Answer yes or no.
+Yes.
+You are driving the ego vehicle. 
+Is the area in the same lane 
+directly ahead at 0-10m drivable? 
+Answer yes or no.
+Yes.
+Figure 2: Dataset overview. Left: Cap4DR combines samples from six radar datasets with radar-
+oriented descriptions for alignment pretraining. Right: OmniHD-QA covers scene description, key-
+object reasoning, 3D occupancy, and trajectory planning for instruction tuning and evaluation.
+structured scene perception with motion planning, but are mainly designed for predefined driving
+tasks and offer limited scene-level reasoning.
+2.2
+VISION-LANGUAGE-ACTION MODELS FOR DRIVING
+Vision-language models (VLMs) have shown strong capabilities in visual understanding and reason-
+ing (Liu et al., 2023; Chen et al., 2024). Recent methods extend these capabilities to scene reasoning
+and motion planning. DriveLM organizes perception, prediction, and planning through graph-based
+question answering (Sima et al., 2024). OmniDrive combines multi-view 3D scene understanding
+with trajectory generation (Wang et al., 2025), while Senna uses a large vision-language model to
+support decision making within an end-to-end driving framework (Jiang et al., 2026). These meth-
+ods bring language reasoning into autonomous driving, but still rely mainly on visual observations,
+so geometric and motion information is inferred rather than directly measured..
+2.3
+4D RADAR PERCEPTION AND LANGUAGE GROUNDING
+Recent studies connect 4D radar perception with language models. WaterVG and NanoMVG com-
+bine language, camera, and 4D radar inputs for grounding in waterway scenes (Guan et al., 2025a;b).
+Talk2Radar grounds referring expressions in 4D radar point clouds (Guan et al., 2025c), while
+Text4Radar-V2X introduces language guidance into cooperative 4D radar-based 3D detection (Peng
+et al., 2026). However, these studies mainly use 4D radar for grounding and detection, while its
+physical measurements have not been fully exploited for scene understanding and downstream tra-
+jectory planning.
+3
+DATASETS
+Existing image–text datasets are largely centered on visual inputs, with little consideration of 4D
+radar observations. We therefore construct Cap4DR for radar–language pretraining and OmniHD-
+QA for multitask instruction tuning and evaluation.
+Cap4DR. Cap4DR integrates synchronized front-view images and 4D radar data from View-of-
+Delft (Palffy et al., 2022), TJ4DRadSet (Zheng et al., 2022), NTU4DRadLM (Zhang et al., 2023),
+MSC-RAD4R (Choi et al., 2023), SNAIL Radar (Huai et al., 2025), and Dual Radar (Zhang et al.,
+2025). We first apply temporal alignment and unified radar preprocessing across datasets. Rather
+than using generic image captions directly, we retain only objects and spatial relations that can be
+associated with radar observations, turning visual descriptions into radar-relevant language super-
+vision. The extracted entities are cross-checked by three VLMs, with ambiguous cases manually
+reviewed. Our Cap4DR dataset contains 86,016 radar–text pairs for radar–language alignment pre-
+training.
+OmniHD-QA. OmniHD-QA is constructed from OmniHD-Scenes (Zheng et al., 2026b) and con-
+tains 520,161 question–answer pairs covering scene description, key-object reasoning, occupancy
+understanding, and trajectory planning. We use Gemini2.5-Pro (Comanici et al., 2025) to generate
+3
+
+
+LLM
+Please provide a safe, 
+executable, and 
+reasonable planning 
+trajectory …
+Please provide a safe, 
+executable, and 
+reasonable planning 
+trajectory …
+MLP
+<waypoint_ego>
+Radar encoder
++RQ-Former
+Image encoder
++IQ-Former
+Multi-view images
+LoRA
+MLP
+LM Head 
+Scene Des. QA
+3D Occ QA
+Multi-view 4D radar points
+Instruction Prompt
+Gated Bidirectional Token Interaction
+Ego State
+Key Object QA
+Reference Trajectory
+Diffusion-based 
+Trajectory Arbitration
+3D Object Detection
+Semantic Occ Prediction
+4D Radar
+Instances
+Ego
+State
+Trajectory
+Anchors
+Corrected Trajectory
+Trainable
+Parameters
+Object
+Queries
+Occupancy
+Queries
+Text tokenizer
+3D Query
+Generation
+Frozen
+Parameters
+RCVLA-Sem
+RCVLA-Phys
+Figure 3: RCVLA architecture. RCVLA-Sem integrates camera and radar tokens for driving ques-
+tion answering and long-horizon reference planning, while providing structured object and occu-
+pancy queries. RCVLA-Phys combines the reference trajectory, structured queries, and cluster-level
+radar measurements for trajectory refinement and TTC-aware selection.
+scene-description QA from multi-view images with available annotations. The remaining tasks are
+constructed from structured annotations, including object tracks, semantic occupancy, and ego pose.
+OmniHD-QA therefore provides unified instruction supervision for driving-specific scene reasoning
+and planning. The reported datasets use the synchronization, annotation, and split rules described in
+this paper.
+4
+METHOD
+4.1
+OVERVIEW
+As shown in Figure 3, RCVLA consists of two stages:
+radar-grounded semantic reasoning
+(RCVLA-Sem) and trajectory arbitration (RCVLA-Phys). In RCVLA-Sem, multi-view image and
+4D radar points are converted into fixed-length tokens and enhanced through gated bidirectional in-
+teraction. The enhanced camera and radar tokens are fed into the LLM with the prompt and ego
+features for driving question answering or long-horizon reference planning, while the encoded sen-
+sor features produce object and occupancy queries for subsequent trajectory arbitration. RCVLA-
+Phys combines the reference trajectory with selected anchors to form candidate priors, refines them
+through truncated diffusion conditioned on structured scene queries and cluster-level radar measure-
+ments, and calibrates their scores with radar-derived time-to-collision (TTC) risk for final selection,
+as shown in Figure 4.
+4.2
+RADAR-GROUNDED SEMANTIC REASONING
+Modality tokens. We use EVA-02-L (Fang et al., 2024) to encode multi-view images into fea-
+tures FI, and RadarPillarNet (Zheng et al., 2023) to extract 4D radar BEV features FR. The image
+features are organized into a multi-view sequence with view and camera-aware 3D positional encod-
+ings, while the radar BEV features are converted into a compact spatial sequence with 2D positional
+encodings, yielding MI and MR. Following the query-based interfaces of BLIP-2 and OmniDrive
+(Li et al., 2023; Wang et al., 2025), independent IQ-Former and RQ-Former modules use learnable
+queries Q0
+m to extract fixed-length language-aligned tokens:
+Tm = Projm
+ QFormerm(Q0
+m, Mm)
+
+,
+m ∈{I, R}.
+(1)
+where QFormerm denotes IQ-Former or RQ-Former, and Projm maps its query outputs to the LLM
+hidden space, yielding TI and TR.
+4
+
+
+Gated bidirectional interaction. Direct interaction in the high-dimensional LLM space is compu-
+tationally expensive, while sparse and noisy radar observations can degrade cross-modal interaction.
+We therefore project the language-aligned tokens into a compact interaction space and apply token-
+wise gating to the radar features:
+Xm = Downm(LN(Tm)) .
+(2)
+gR = σ(MLPg(LN(XR))) ,
+bXR = gR ⊙XR.
+(3)
+where Downm(·) denotes a modality-specific linear projection, σ(·) is the sigmoid function, and gR
+contains a scalar gate for each radar token.
+The image branch attends to the gated radar features bXR, while the radar branch attends to the image
+features XI. The two branches use separate cross-attention modules, followed by residual and FFN
+updates, yielding eXI and eXR. We retain the original language-aligned tokens and inject only the
+residual introduced by cross-modal interaction:
+T′
+m = Tm + αm Upm
+
+eXm −Xm
+
+.
+(4)
+where Upm(·) projects the interaction residual back to the LLM hidden space, and αm is a learnable
+scalar initialized to a small positive value.
+Language, reference trajectory, and structured queries. The enhanced image and radar tokens
+are combined with the prompt embeddings and ego features and fed into a LoRA-adapted LLM (Hu
+et al., 2022a). For QA tasks, the model generates language responses autoregressively. For planning
+prompts, we introduce a special token <waypoint ego> and pass its hidden state through an MLP
+to directly regress a continuous long-horizon reference trajectory of 12 waypoints over the next 6 s.
+In parallel, two lightweight transformer decoders operate on the shared image and radar features to
+produce object queries QOD and occupancy queries QOCC. The object branch uses learnable 3D
+reference points, while the occupancy branch uses a regular 3D grid. Both aggregate image and
+radar BEV features through deformable attention and are supervised by 3D detection and semantic
+occupancy, respectively. The resulting queries provide structured conditions for RCVLA-Phys.
+4.3
+TRAJECTORY ARBITRATION
+Reference-guided query initialization.
+We align the long-horizon reference trajectory from
+RCVLA-Sem to the current ego frame and retain its next 3 s segment as a candidate prior. Ad-
+ditional priors are retrieved from an offline trajectory-anchor bank to preserve both reference con-
+sistency and motion diversity. Following truncated diffusion (Liao et al., 2025), each candidate prior
+µm is perturbed as
+xi
+m = √¯αi µm +
+√
+1 −¯αi ϵm.
+(5)
+where ϵm ∼N(0, I) denotes Gaussian noise and ¯αi is the cumulative diffusion coefficient. Each
+noisy prior is encoded by an MLP and combined with ego-state and candidate-index embeddings to
+initialize the trajectory queries, which are then passed to the diffusion decoder for iterative refine-
+ment.
+Structured diffusion decoder. The decoder refines trajectory queries using occupancy, object, and
+radar conditions, which respectively provide free-space and obstacle constraints, instance-level ob-
+ject representations, and direct measurements of position and motion. Radar clusters are obtained
+from 4D radar points using DBSCAN (Schubert et al., 2017). Feature adapters project each condi-
+tion into the trajectory-query feature dimension.
+At decoder layer ℓ, the trajectory queries interact with each condition through cross-attention, and
+the attended context is incorporated through a gated residual update:
+Cℓ
+k = MCAk
+ LN(Qℓ
+k,in), Mk, Mk
+
+,
+(6)
+gℓ
+k = σ
+ MLPk[Qℓ
+k,in; Cℓ
+k]
+
+,
+(7)
+Qℓ
+k,out = LN
+ Qℓ
+k,in + gℓ
+k ⊙Cℓ
+k
+
+.
+(8)
+where k ∈{OCC, OD, R} denotes the condition type, Qℓ
+k,in and Qℓ
+k,out are the trajectory queries
+before and after interaction with condition k, and Mk contains the corresponding adapted condition
+5
+
+
+features. MCAk(·, ·, ·) denotes multi-head cross-attention. The resulting condition context Cℓ
+k is
+modulated by the query-conditioned gate gℓ
+k before being incorporated through the residual update.
+The operators σ(·) and ⊙denote the sigmoid function and elementwise multiplication, respectively.
+After the condition interactions, the trajectory queries are updated by an FFN with a residual con-
+nection, yielding eQℓ. The diffusion timestep then modulates these queries through FiLM:
+Qℓ= eQℓ⊙(1 + γℓ
+i ) + βℓ
+i,
+(9)
+where eQℓdenotes the trajectory queries after the conditional interactions and FFN update, and γℓ
+i
+and βℓ
+i are the scale and bias generated from the diffusion-timestep embedding. A regression head
+and a scoring head then predict a denoised candidate trajectory bτm and its score sm, respectively.
+The regression head directly predicts a coordinate correction to the noisy trajectory rather than noise.
+At inference, the final-layer decoder predictions update the candidates at the next DDIM timestep.
+Classification
+Head
+Classification
+Head
+Gated Cross-Attention
+Gated Cross-Attention
+Gated Cross-Attention
+FFN
+Timestep FiLM Modulation
+Feature
+Adapter
+Ego State
+Feature
+Adapter
+Feature
+Adapter
+Ego-State
+Encoder
+Trajectory Bank
+Gaussian Noise
+Reference
+Trajectory
+Filtering
+Add Noise
+Trajectory
+Priors
+Noisy
+Trajectory
+Trajectory
+Encoder
+Timestep
+Encoder
+Add & Norm
+Add & Norm
+Add & Norm
+Add & Norm
+Regression Head
+Regression Head
+Object
+Queries
+Occupancy
+Queries
+Trajectory Queries
+Timestep
+N×
+Layer Norm
+Linear Layer
+GELU
+Linear Layer
+Sinusoidal
+Pos Encoding
+Linear Layer
+Mish
+Linear Layer
+Denoised
+Trajectories
+DBSCAN Clustering
+4D Radar
+Instance
+4D Radar
+Point Cloud
+Explicit Risk
+Closing
+Speed
+TTC Risk
+Proximity
+Trajectory Index
+Embedding
+Position 
+Extrapolation
+Relative State
+Diffusion Decoder
+Figure 4: Trajectory arbitration.
+Radar-based risk calibration.
+In
+addition to trajectory refinement, 4D
+radar clusters also provide physical
+cues for risk-aware candidate selec-
+tion. For radar cluster j, let pj and
+vj denote its planar center position
+and compensated radial-velocity vec-
+tor, respectively. Assuming constant
+velocity, its center at planning step h
+is predicted as pj,h = pj + thvj,
+where th = h∆t and ∆t = 0.5 s.
+For the m-th candidate trajectory, let
+em,h and vm,h denote the ego posi-
+tion and velocity at step h, and let
+dm,j,h denote the minimum planar
+distance between the ego and radar-
+cluster footprints, with dm,j,h = 0
+for overlap. The closing speed is
+cm,j,h = max
+
+(vm,h −vj)⊤
+pj,h −em,h
+∥pj,h −em,h∥2 + ε, 0
+
+.
+(10)
+where ε is a small constant for numer-
+ical stability. The corresponding TTC
+is
+TTCm,j,h =
+th,
+dm,j,h = 0,
+th + dm,j,h/cm,j,h,
+dm,j,h > 0, cm,j,h > 0.
+(11)
+The minimum TTC over all clusters and waypoints is converted into candidate risk:
+rm =
+exp
+ −TTCmin
+m /τTTC
+
+,
+TTCmin
+m
+≤Th,
+0,
+otherwise,
+(12)
+where TTCmin
+m
+= minj,h TTCm,j,h and Th is the planning horizon. A smaller TTC yields a larger
+risk. During training, rm is used to construct a risk-aware soft ranking target, while at inference it
+calibrates the candidate scores before final selection.
+4.4
+TRAINING OBJECTIVES
+RCVLA is trained in three stages. First, the radar encoder is pretrained with 3D detection and
+semantic occupancy supervision. We then freeze the radar encoder and the LLM and train only RQ-
+Former on Cap4DR with masked autoregressive language modeling for radar–language alignment.
+Second, we initialize the image and radar encoders, IQ-Former, and RQ-Former from pretrained
+weights and fine-tune RCVLA-Sem on OmniHD-QA. The base LLM remains frozen, while its
+LoRA adapters are trainable. The objective jointly supervises language generation, reference plan-
+6
+
+
+ning, and structured scene queries:
+Lsem = LLM + Lwp + λDetLDet + λOCCLOCC,
+(13)
+where LLM is the next-token prediction loss and Lwp is an L1 loss. The detection and occupancy
+losses, LDet and LOCC, are defined following (Zheng et al., 2026a).
+Third, we freeze RCVLA-Sem and train RCVLA-Phys for trajectory refinement and risk-aware
+candidate ranking. For M denoised candidates, let d, r, and s denote their average displacement
+errors to the ground-truth trajectory τ ∗, radar risk, and predicted logits, respectively. The candidate
+with the smallest trajectory error m∗= arg minm dm, is selected for regression. For candidate
+ranking, we construct a risk-aware soft target π and calibrate the predicted distribution p as
+π = softmax
+
+−d + λrr
+Tc
+
+,
+(14)
+p = softmax(s −λsr) ,
+(15)
+where λr and λs control the contribution of radar risk to the soft target and predicted logits, re-
+spectively, and Tc is the temperature parameter. The overall objective jointly optimizes trajectory
+regression and candidate ranking:
+Lphys = λreg SmoothL1(bτm∗, τ ∗) −
+M
+X
+m=1
+πm log pm,
+(16)
+where bτm∗is the selected denoised trajectory and λreg balances the regression term. The regression
+candidate is determined solely by trajectory error, while radar risk affects only candidate ranking
+and score calibration.
+5
+EXPERIMENTS
+Table 1: Scene description performance. B-n: BLEU-n;
+R-L: ROUGE-L; MET.: METEOR. Higher is better.
+Method
+B-1
+B-2
+B-3
+B-4
+R-L
+CIDEr
+MET.
+LLaVA-v1.5
+14.50
+8.08
+4.90
+2.91
+19.53
+7.25
+19.31
+Qwen2.5-VL
+28.66
+15.34
+9.00
+5.29
+22.57
+22.00
+30.36
+Qwen3-VL
+30.53
+17.31
+10.74
+6.78
+24.35
+24.38
+33.57
+InternVL2.5
+20.28
+11.79
+7.37
+4.55
+23.01
+15.17
+24.92
+InternVL3
+26.85
+14.82
+8.82
+5.28
+23.05
+20.45
+28.28
+OmniDrive
+39.80
+28.48
+21.90
+17.38
+36.98
+92.49
+43.13
+RCVLA-Sem
+41.82
+30.22
+23.40
+18.69
+38.28
+102.41
+44.91
+Table 2:
+Occupancy and key-object reasoning perfor-
+mance. Occ., Dyn., Sta., and Drv. are class accuracies;
+Aocc and Aint are aggregate accuracies. All values are
+percentages except Verr (m/s).
+Method
+Occ.↑
+Dyn.↑
+Sta.↑
+Drv.↑
+Aocc ↑
+Verr ↓
+Aint ↑
+LLaVA-v1.5
+45.21
+37.06
+56.55
+43.88
+44.25
+11.04
+16.09
+Qwen2.5-VL
+47.89
+25.48
+56.56
+15.17
+35.00
+6.16
+75.63
+Qwen3-VL
+49.37
+43.76
+58.06
+44.55
+47.78
+8.71
+64.55
+InternVL2.5
+56.30
+45.31
+45.24
+90.46
+61.51
+5.83
+75.22
+InternVL3
+51.13
+72.19
+43.47
+90.48
+65.57
+6.02
+70.99
+OmniDrive
+70.30
+82.44
+69.44
+92.15
+78.81
+3.61
+75.38
+RCVLA-Sem
+72.93
+82.57
+75.29
+91.67
+80.41
+2.82
+74.25
+Dataset and evaluation.
+Cap4DR
+is used only for RQ-Former pretrain-
+ing, while all downstream experiments
+are conducted on OmniHD-QA, with
+358,185 training and 161,976 test sam-
+ples.
+We evaluate scene descrip-
+tion with standard caption metrics,
+key-object reasoning with velocity er-
+ror and intention accuracy, occupancy
+reasoning with accuracy, and trajec-
+tory planning with open-loop L2 error
+and collision rate.
+Baselines include
+LLaVA-v1.5-7B (Liu et al., 2023),
+Qwen2.5-VL-7B-Instruct (Bai et al.,
+2025b), Qwen3-VL-8B-Instruct (Bai
+et al., 2025a), InternVL2.5-8B (Chen
+et al., 2024), InternVL3-8B (Zhu et al.,
+2025), OmniDrive (Wang et al., 2025),
+Constant-Velo, BEV-Planner (Li et al.,
+2024), and UniAD (Hu et al., 2023).
+The general VLM baselines perform
+zero-shot inference, while OmniDrive and UniAD are trained without map supervision. All com-
+pared methods use the stated data split and evaluation metrics. Implementation details. We use six
+synchronized 640 × 640 camera views and multi-view 4D radar points, with Vicuna-7B as the lan-
+guage model. IQ-Former and RQ-Former each contain 256 learnable queries and six encoder layers.
+RCVLA-Phys uses five trajectory candidates, a two-layer diffusion decoder, and two DDIM refine-
+ment steps. All stages are trained with AdamW on four NVIDIA L20 GPUs. The stated architecture
+and optimization configuration is used throughout.
+5.1
+MAIN RESULTS
+7
+
+
+Table 3: Open-loop planning on OmniHD-QA. L2 error
+and collision rate at each horizon; lower is better.
+L2 (m)
+Collision (%)
+Method
+1 s
+2 s
+3 s
+Avg.
+1 s
+2 s
+3 s
+Avg.
+Qwen2.5-VL
+1.239
+1.774
+2.488
+1.834
+2.870
+6.389
+11.111
+6.790
+Qwen3-VL
+0.224
+0.581
+1.059
+0.621
+0.370
+2.623
+6.420
+3.138
+InternVL2.5
+0.255
+0.668
+1.570
+0.831
+0.463
+2.039
+6.457
+2.986
+InternVL3
+2.411
+4.646
+7.086
+4.714
+19.136
+23.796
+31.636
+24.856
+UniAD
+0.403
+0.750
+1.171
+0.775
+0.525
+1.821
+3.519
+1.955
+Constant-Velo
+0.126
+0.337
+0.646
+0.370
+0.031
+0.247
+2.222
+0.833
+BEV-Planner
+0.176
+0.339
+0.585
+0.367
+0.031
+0.062
+0.864
+0.319
+OmniDrive
+0.121
+0.334
+0.648
+0.368
+0.000
+0.123
+1.420
+0.514
+RCVLA-Sem
+0.117
+0.317
+0.608
+0.348
+0.031
+0.216
+1.481
+0.576
+RCVLA-Phys
+0.109
+0.236
+0.431
+0.259
+0.000
+0.123
+0.401
+0.175
+Table 4: RCVLA-Sem ablation results. Accuracy and col-
+lision values are percentages. RLP denotes radar-language
+pretraining.
+Setting
+CIDEr↑
+Verr ↓
+Accint ↑
+Accocc ↑
+L2↓
+Coll.↓
+w/o 4D radar
+98.70
+3.50
+68.89
+79.48
+0.344
+0.391
+w/o RLP
+101.60
+3.45
+70.97
+80.63
+0.345
+0.391
+Token addition
+100.45
+3.00
+72.07
+80.21
+0.354
+0.761
+Token concatenation
+102.20
+2.96
+73.80
+80.63
+0.353
+0.525
+Full
+102.41
+2.82
+74.25
+80.41
+0.348
+0.576
+Scene cognition. RCVLA-Sem com-
+bines visual semantics with radar-
+derived spatial and motion cues for
+scene description.
+In Table 1, it im-
+proves CIDEr over OmniDrive from
+92.49 to 102.41, with gains across all
+captioning metrics. Table 2 shows that
+RCVLA-Sem improves occupancy ac-
+curacy from 78.81% to 80.41% and
+reduces key-object velocity error from
+3.61 to 2.82 m/s.
+Drivable-area and
+intention accuracies remain lower than
+OmniDrive by 0.48 and 1.13 points, re-
+spectively. Figure 5 provides qualita-
+tive question-answering examples, il-
+lustrating how RCVLA-Sem combines
+visual semantics with radar-derived
+spatial and motion cues for scene un-
+derstanding.
+Trajectory planning. As shown in Ta-
+ble 3, RCVLA-Phys achieves the low-
+est average L2 error and collision rate among the compared methods, with 0.259 m and 0.175%,
+respectively. Compared with RCVLA-Sem, trajectory arbitration reduces the average L2 error from
+0.348 to 0.259 m and the collision rate from 0.576% to 0.175%. Although RCVLA-Sem already
+outperforms BEV-Planner in average L2 error (0.348 vs. 0.367 m), its collision rate remains higher
+(0.576% vs. 0.319%), indicating that accurate reference trajectories do not necessarily correspond to
+lower collision risk. With RCVLA-Phys, the L2 error is further reduced at all three horizons, while
+the 3 s collision rate drops from 1.481% to 0.401%. Qualitative examples of trajectory refinement
+are shown in Figure 6.
+5.2
+ABLATION STUDIES
+Scene Description
+A
+The sun is low in the sky ahead. How does this affect my driving and what should I do?
+The low sun is causing significant glare, which can reduce visibility and make it harder to see distant objects or 
+the actions of other drivers. I should ensure my sun visor is in place and be extra cautious, as the glare could 
+also temporarily blind me to hazards.
+The low sun is creating intense glare, which significantly reduces my forward visibility, making it harder to see 
+the vehicle ahead and any potential hazards. To mitigate this, I should increase my following distance to the 
+white SUV in front and reduce my speed to allow for a longer reaction time.
+Key Object
+3D Occupancy
+GT
+A
+You are driving the ego vehicle. Identify the rider at 2 meters behind, 4 meters to the right. What is its current 
+velocity and intention relative to your vehicle (choose from: going straight, turning left, turning right)?
+Velocity: {6.3, -0.1}, Intention: {going straight}. 
+Velocity: {6.1, 0.6}, Intention: {going straight}.
+GT
+A
+You are driving the ego vehicle. Is the area in the same lane directly ahead at 0-10m occupied by any 
+obstacles? Answer yes or no.
+No.
+No.
+GT
+Q1
+Q2
+Q3
+Q1
+Q2
+Q3
+Figure 5: Qualitative question-answering results.
+RCVLA-Sem
+ablation.
+Table 4 compares different
+RCVLA-Sem settings. The
+full
+model
+achieves
+the
+best CIDEr, key-object ve-
+locity error, and intention
+accuracy.
+Compared with
+removing 4D radar, it im-
+proves CIDEr from 98.70
+to
+102.41
+and
+reduces
+velocity error from 3.50 to
+2.82 m/s. Removing RLP
+or replacing the proposed
+interaction
+with
+token
+addition or concatenation
+also
+degrades
+semantic
+performance. These results
+support the roles of radar-
+language
+alignment
+and
+cross-modal interaction in
+scene cognition.
+However, the gains in semantic reasoning do not translate into a lower collision rate, suggesting
+that semantic-level radar integration alone is insufficient for trajectory safety and motivating the
+dedicated trajectory arbitration in RCVLA-Phys.
+8
+
+
+Figure 6: Qualitative examples of trajectory arbitra-
+tion. Orange, magenta, and green denote the refer-
+ence, arbitrated, and GT trajectories.
+0.0 s
+0.5 s
+1.0 s
+1.5 s
+2.0 s
+2.5 s
+3.0 s
+0.3
+0.6
+0.9
+1.2
+Average L2 error (m)
+0.0 s
+0.5 s
+1.0 s
+1.5 s
+2.0 s
+2.5 s
+3.0 s
+0.75
+1.5
+2.25
+3
+Average collision rate (%)
+Before correction
+After physical arbitration
+Figure 7: Effect of reference delay on trajec-
+tory arbitration. Orange and blue denote the
+reanchored reference and arbitrated trajectory.
+Table 5: Ablation of RCVLA-Phys.
+Setting
+L2 (m)↓
+Collision (%)↓
+w/o occupancy queries
+0.321
+0.597
+w/o object queries
+0.320
+0.309
+w/o radar clusters
+0.297
+0.442
+w/o risk calibration
+0.296
+0.340
+Full
+0.259
+0.175
+Table 6: Robustness to reference trajectories
+Delay
+Avg. L2 (m)↓
+Avg. Coll. (%)↓
+0.0 s
+0.301
+0.347
+0.5 s
+0.335
+0.243
+1.0 s
+0.383
+0.243
+1.5 s
+0.439
+0.347
+2.0 s
+0.478
+0.451
+2.5 s
+0.519
+0.498
+3.0 s
+0.564
+0.532
+RCVLA-Phys components. Table 5 evaluates the
+contribution of occupancy queries, object queries,
+radar clusters, and radar risk calibration. Removing
+occupancy queries causes the largest overall degra-
+dation, increasing average L2 error from 0.259 to
+0.321 m and collision rate from 0.175% to 0.597%.
+Removing object queries increases the two met-
+rics to 0.320 m and 0.309%, respectively.
+Re-
+moving radar clusters raises the collision rate to
+0.442%, while removing risk calibration increases
+it to 0.340%. These results show that all four com-
+ponents contribute to trajectory arbitration, with
+both radar clusters and risk calibration providing
+clear gains in collision reduction.
+Robustness to delayed references. We evaluate
+RCVLA-Phys under delayed reference trajectories.
+During training, reference delays are sampled from 0 to 3 s at 0.5 s intervals, while object, occu-
+pancy, and radar conditions remain current. Expired waypoints are removed and the remaining
+trajectory is reanchored to the current ego frame before arbitration. As shown in Table 6, average
+L2 error increases from 0.301 to 0.564 m as the delay reaches 3 s, while the collision rate rises to
+0.532%. Figure 7 shows that current scene conditions can partially compensate for delayed refer-
+ences, but the degradation increases with reference staleness.
+6
+CONCLUSION
+In this work, we present RCVLA, a radar-camera VLA framework that exploits 4D radar in com-
+plementary roles for semantic reasoning and trajectory arbitration. We construct Cap4DR for radar-
+language alignment and OmniHD-QA for driving instruction tuning and evaluation. RCVLA-Sem
+performs radar-grounded semantic reasoning through camera-radar token interaction, supporting
+driving question answering and long-horizon reference planning while producing structured object
+and occupancy queries. RCVLA-Phys further refines reference-guided trajectory candidates using
+these queries and cluster-level radar measurements, with radar-derived TTC risk calibrating candi-
+date selection. Experiments show that language-aligned radar tokens improve scene cognition, while
+cluster-level radar measurements and risk calibration further improve open-loop trajectory planning.
+Future work will explore predictive world models for longer-horizon reasoning and planning.
+REFERENCES
+Shuai Bai, Yuxuan Cai, Ruizhe Chen, Keqin Chen, Xionghui Chen, Zesen Cheng, Lianghao
+Deng, Wei Ding, Chang Gao, Chunjiang Ge, et al. Qwen3-vl technical report. arXiv preprint
+arXiv:2511.21631, 2025a.
+9
+
+
+Shuai Bai, Keqin Chen, Xuejing Liu, Jialin Wang, Wenbin Ge, et al. Qwen2.5-vl technical report.
+arXiv preprint arXiv:2502.13923, 2025b.
+Mario Bijelic, Tobias Gruber, Fahim Mannan, Florian Kraus, Werner Ritter, Klaus Dietmayer, and
+Felix Heide. Seeing through fog without seeing fog: Deep multimodal sensor fusion in unseen
+adverse weather. In 2020 IEEE/CVF Conference on Computer Vision and Pattern Recognition
+(CVPR), pp. 11679–11689. IEEE, 2020.
+Zhe Chen, Jiannan Wu, Wenhai Wang, Weijie Su, Guo Chen, Sen Xing, Muyan Zhong, Qinglong
+Zhang, Xizhou Zhu, Lewei Lu, et al. Internvl: Scaling up vision foundation models and aligning
+for generic visual-linguistic tasks. In Proceedings of the IEEE/CVF Conference on Computer
+Vision and Pattern Recognition (CVPR), pp. 24185–24198, 2024.
+Minseong Choi, Seunghoon Yang, Seungho Han, Yeongseok Lee, Minyoung Lee, Keun Ha Choi,
+and Kyung-Soo Kim. Msc-rad4r: Ros-based automotive dataset with 4d radar. IEEE Robotics
+and Automation Letters, 8(11):7194–7201, 2023.
+Gheorghe Comanici, Eric Bieber, Mike Schaekermann, Ice Pasupat, Noveen Sachdeva, Inderjit
+Dhillon, Marcel Blistein, Ori Ram, Dan Zhang, Evan Rosen, et al. Gemini 2.5: Pushing the
+frontier with advanced reasoning, multimodality, long context, and next generation agentic capa-
+bilities. arXiv preprint arXiv:2507.06261, 2025.
+Yuxin Fang, Quan Sun, Xinggang Wang, Tiejun Huang, Xinlong Wang, and Yue Cao. Eva-02: A
+visual representation for neon genesis. Image and Vision Computing, 149:105171, 2024.
+Runwei Guan, Liye Jia, Shanliang Yao, Fengyufan Yang, Sheng Xu, Erick Purwanto, Xiaohui Zhu,
+Ka Lok Man, Eng Gee Lim, Jeremy Smith, et al. Watervg: Waterway visual grounding based on
+text-guided vision and mmwave radar. IEEE Transactions on Intelligent Transportation Systems,
+26(5):7275–7291, 2025a.
+Runwei Guan, Jianan Liu, Liye Jia, Haocheng Zhao, Shanliang Yao, Xiaohui Zhu, Ka Lok Man,
+Eng Gee Lim, Jeremy Smith, and Yutao Yue. Nanomvg: Usv-centric low-power multi-task visual
+grounding based on prompt-guided camera and 4d mmwave radar. In 2025 IEEE/RSJ Interna-
+tional Conference on Intelligent Robots and Systems (IROS), pp. 11789–11796. IEEE, 2025b.
+Runwei Guan, Ruixiao Zhang, Ningwei Ouyang, Jianan Liu, Ka Lok Man, Xiaohao Cai, Ming Xu,
+Jeremy Smith, Eng Gee Lim, Yutao Yue, et al. Talk2radar: Bridging natural language with 4d
+mmwave radar for 3d referring expression comprehension. In 2025 IEEE International Confer-
+ence on Robotics and Automation (ICRA), pp. 10884–10891. IEEE, 2025c.
+Edward J Hu, yelong shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang,
+and Weizhu Chen. LoRA: Low-rank adaptation of large language models. In International Con-
+ference on Learning Representations (ICLR), 2022a.
+URL https://openreview.net/
+forum?id=nZeVKeeFYf9.
+Shengchao Hu, Li Chen, Penghao Wu, Hongyang Li, Junchi Yan, and Dacheng Tao. St-p3: End-to-
+end vision-based autonomous driving via spatial-temporal feature learning. In European Confer-
+ence on Computer Vision, pp. 533–549. Springer, 2022b.
+Yihan Hu, Jiazhi Yang, Li Chen, Keyu Li, Chonghao Sima, Xizhou Zhu, Siqi Chai, Senyao Du,
+Tianwei Lin, Wenhai Wang, et al. Planning-oriented autonomous driving. In 2023 IEEE/CVF
+Conference on Computer Vision and Pattern Recognition (CVPR), pp. 17853–17862. IEEE, 2023.
+Jianzhu Huai, Binliang Wang, Yuan Zhuang, Yiwen Chen, Qipeng Li, and Yulong Han. Snail radar:
+A large-scale diverse benchmark for evaluating 4d-radar-based slam. The International Journal
+of Robotics Research, 44(12):1941–1958, 2025.
+Bo Jiang, Shaoyu Chen, Bencheng Liao, Xingyu Zhang, Wei Yin, Qian Zhang, Chang Huang,
+Wenyu Liu, and Xinggang Wang. Senna: Bridging large vision-language models and end-to-
+end autonomous driving. International Journal of Computer Vision, 134(9):407, 2026.
+Junnan Li, Dongxu Li, Silvio Savarese, and Steven Hoi. Blip-2: Bootstrapping language-image
+pre-training with frozen image encoders and large language models. In International Conference
+on Machine Learning (ICML), pp. 19730–19742. PmLR, 2023.
+10
+
+
+Zhiqi Li, Zhiding Yu, Shiyi Lan, Jiahan Li, Jan Kautz, Tong Lu, and Jose M Alvarez. Is ego status
+all you need for open-loop end-to-end autonomous driving? In 2024 IEEE/CVF Conference on
+Computer Vision and Pattern Recognition (CVPR), pp. 14864–14873. IEEE, 2024.
+Bencheng Liao, Shaoyu Chen, Haoran Yin, Bo Jiang, Cheng Wang, Sixu Yan, Xinbang Zhang,
+Xiangyu Li, Ying Zhang, Qian Zhang, et al. Diffusiondrive: Truncated diffusion model for end-
+to-end autonomous driving. In 2025 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), pp. 12037–12047. IEEE, 2025.
+Haotian Liu, Chunyuan Li, Qingyang Wu, and Yong Jae Lee. Visual instruction tuning. Advances
+in Neural Information Processing Systems (NeurIPS), 36:34892–34916, 2023.
+Andras Palffy, Ewoud Pool, Srimannarayana Baratam, Julian FP Kooij, and Dariu M Gavrila. Multi-
+class road user detection with 3+ 1d radar in the view-of-delft dataset. IEEE Robotics and Au-
+tomation Letters, 7(2):4961–4968, 2022.
+Xiangyuan Peng, Kay Bierzynski, Lorenzo Servadei, and Robert Wille.
+Text4radar-v2x: Text-
+guided 4d radar for cooperative 3d object detection. In Proceedings of the 2026 International
+Conference on Multimedia Retrieval, pp. 1025–1034, 2026.
+Erich Schubert, J¨org Sander, Martin Ester, Hans Peter Kriegel, and Xiaowei Xu. Dbscan revisited,
+revisited: why and how you should (still) use dbscan. ACM transactions on database systems
+(tods), 42(3):1–21, 2017.
+Chonghao Sima, Katrin Renz, Kashyap Chitta, Li Chen, Hanxue Zhang, Chengen Xie, Jens
+Beißwenger, Ping Luo, Andreas Geiger, and Hongyang Li. Drivelm: Driving with graph vi-
+sual question answering. In European Conference on Computer Vision (ECCV), pp. 256–274.
+Springer, 2024.
+Shihao Wang, Zhiding Yu, Xiaohui Jiang, Shiyi Lan, Min Shi, Nadine Chang, Jan Kautz, Ying
+Li, and Jose M Alvarez. Omnidrive: A holistic vision-language dataset for autonomous driving
+with counterfactual reasoning. In 2025 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), pp. 22442–22452. IEEE, 2025.
+Jun Zhang, Huayang Zhuge, Yiyao Liu, Guohao Peng, Zhenyu Wu, Haoyuan Zhang, Qiyang Lyu,
+Heshan Li, Chunyang Zhao, Dogan Kircali, et al. Ntu4dradlm: 4d radar-centric multi-modal
+dataset for localization and mapping. In 2023 IEEE 26th International Conference on Intelligent
+Transportation Systems (ITSC), pp. 4291–4296. IEEE, 2023.
+Xinyu Zhang, Li Wang, Jian Chen, Cheng Fang, Guangqi Yang, Yichen Wang, Lei Yang, Ziying
+Song, Lin Liu, Xiaofei Zhang, et al. Dual radar: A multi-modal dataset with dual 4d radar for
+autononous driving. Scientific data, 12(1):439, 2025.
+Lianqing Zheng, Zhixiong Ma, Xichan Zhu, Bin Tan, Sen Li, Kai Long, Weiqi Sun, Sihan Chen,
+Lu Zhang, Mengyue Wan, et al. Tj4dradset: A 4d radar dataset for autonomous driving. In 2022
+IEEE 25th international conference on intelligent transportation systems (ITSC), pp. 493–498.
+IEEE, 2022.
+Lianqing Zheng, Sen Li, Bin Tan, Long Yang, Sihan Chen, Libo Huang, Jie Bai, Xichan Zhu, and
+Zhixiong Ma. Rcfusion: Fusing 4-d radar and camera with bird’s-eye view features for 3-d object
+detection. IEEE Transactions on Instrumentation and Measurement, 72:1–14, 2023.
+Lianqing Zheng, Jianan Liu, Runwei Guan, Long Yang, Shouyi Lu, Yuanzhe Li, Xiaokai Bai,
+Jie Bai, Zhixiong Ma, Hui-Liang Shen, and Xichan Zhu. Doracamom: Joint 3d detection and
+occupancy prediction with multi-view 4d radars and cameras for omnidirectional perception.
+IEEE Transactions on Circuits and Systems for Video Technology, 36(6):7630–7645, 2026a. doi:
+10.1109/TCSVT.2026.3657111.
+Lianqing Zheng, Long Yang, Qunshu Lin, Wenjin Ai, Minghao Liu, Shouyi Lu, Jianan Liu, Hongze
+Ren, Jingyue Mo, Xiaokai Bai, et al. Omnihd-scenes: A next-generation multimodal dataset for
+autonomous driving. IEEE Transactions on Pattern Analysis and Machine Intelligence, 48(6):
+7032–7049, 2026b.
+11
+
+
+Jinguo Zhu, Weiyun Wang, Zhe Chen, Zhaoyang Liu, Shenglong Ye, Lixin Gu, Hao Tian, Yuchen
+Duan, Weijie Su, Jie Shao, et al. Internvl3: Exploring advanced training and test-time recipes for
+open-source multimodal models. arXiv preprint arXiv:2504.10479, 2025.
+12

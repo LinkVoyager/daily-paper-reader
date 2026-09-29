@@ -48,7 +48,7 @@
 <section class="dpr-home-dashboard-card dpr-home-report-card">
   <div class="dpr-home-dashboard-header">
     <div>
-      <span class="dpr-home-dashboard-kicker">2026-09-28</span>
+      <span class="dpr-home-dashboard-kicker">2026-09-29</span>
       <h3 class="dpr-home-dashboard-title">今日汇总</h3>
     </div>
     <strong class="dpr-home-dashboard-count">共 17 篇</strong>
@@ -58,7 +58,7 @@
     <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>6</dd></div>
     <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>11</dd></div>
   </dl>
-  <p class="dpr-home-dashboard-body">最近更新：2026-09-28 23:40:07 UTC<br>状态：成功</p>
+  <p class="dpr-home-dashboard-body">最近更新：2026-09-29 22:45:51 UTC<br>状态：成功</p>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-brief-card">
   <div class="dpr-home-dashboard-header">
@@ -69,7 +69,10 @@
     <strong class="dpr-home-dashboard-count">AI</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<p>今日精读6篇、速读11篇，共筛选17篇论文，聚焦VLA与世界模型、具身任务规划。最值得看的是9.0分的《Towards VLA-Dreamer》用世界模型优化VLA行为，以及8.0分的《X-Planner》事件结构化任务规划。普通读者可优先从这两篇入手，再顺带浏览USV导航与机器人操作方向的速读论文。</p>
+<p>今日共生成 17 篇推荐（精读 6 篇，速读 11 篇）</p>
+<p>精读：《RCVLA: 4D Radar-Grounded Semantic Reasoning and Trajectory Arbitration for Autonomous Driving》（10.0/10）, 《CAR-VLA: Complexity-Aware and Risk-Adaptive Reasoning for Autonomous Driving》（10.0/10）</p>
+<p>速读：《AdaHVLA: Adaptive Harnesses for Long-Horizon Vision-Language-Action Execution》（8.0/10）, 《Fast Plans, Faithful Actions: Closing the Planning-Execution Gap in Hierarchical Vision-Language-Action Models》（8.0/10）, 《SLIP-VLA: Single-Step Latent Imagination for Policy Learning in Vision-Language-Action Models》（8.0/10）</p>
+<p>这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。</p>
   </div>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-deep-card">
@@ -81,7 +84,7 @@
     <strong class="dpr-home-dashboard-count">6 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="Towards VLA-Dreamer: Refining VLA Behavior Using World Models">Towards VLA-Dreamer: Refining VLA Behavior Using World Models</span></li><li><span class="dpr-home-dashboard-paper-title" title="X-Planner: Event-Structured Task Planning for Embodied Intelligence">X-Planner: Event-Structured Task Planning for Embodied Intelligence</span></li><li><span class="dpr-home-dashboard-paper-title" title="MachEmbodied-U0: Unified Understanding and Generation Model for Embodied Intelligence">MachEmbodied-U0: Unified Understanding and Generation Model for Embodied Intelligence</span></li></ul>
+<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="RCVLA: 4D Radar-Grounded Semantic Reasoning and Trajectory Arbitration for Autonomous Driving">RCVLA: 4D Radar-Grounded Semantic Reasoning and Trajectory Arbitration for Autonomous Driving</span></li><li><span class="dpr-home-dashboard-paper-title" title="CAR-VLA: Complexity-Aware and Risk-Adaptive Reasoning for Autonomous Driving">CAR-VLA: Complexity-Aware and Risk-Adaptive Reasoning for Autonomous Driving</span></li><li><span class="dpr-home-dashboard-paper-title" title="CausalDriveBench: Evaluating Causal Reasoning in Vision-Language-Action Models for Autonomous Driving">CausalDriveBench: Evaluating Causal Reasoning in Vision-Language-Action Models for Autonomous Driving</span></li></ul>
   </div>
   <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">driving-vla <strong>6</strong></span></div>
 </section>
@@ -94,7 +97,7 @@
     <strong class="dpr-home-dashboard-count">11 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="RiverVLN: Phase-Grounded Temporal Vision--Language Navigation for Unmanned Surface Vehicles">RiverVLN: Phase-Grounded Temporal Vision--Language Navigation for Unmanned Surface Vehicles</span></li><li><span class="dpr-home-dashboard-paper-title" title="AR-WAM: A Visual-Conditioned Agent-Ready World Action Model for Robotic Manipulation">AR-WAM: A Visual-Conditioned Agent-Ready World Action Model for Robotic Manipulation</span></li><li><span class="dpr-home-dashboard-paper-title" title="TaskAnchor: Grounding Task State in Reactive VLAs for Long-Horizon Manipulation">TaskAnchor: Grounding Task State in Reactive VLAs for Long-Horizon Manipulation</span></li></ul>
+<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="AdaHVLA: Adaptive Harnesses for Long-Horizon Vision-Language-Action Execution">AdaHVLA: Adaptive Harnesses for Long-Horizon Vision-Language-Action Execution</span></li><li><span class="dpr-home-dashboard-paper-title" title="Fast Plans, Faithful Actions: Closing the Planning-Execution Gap in Hierarchical Vision-Language-Action Models">Fast Plans, Faithful Actions: Closing the Planning-Execution Gap in Hierarchical Vision-Language-Action Models</span></li><li><span class="dpr-home-dashboard-paper-title" title="SLIP-VLA: Single-Step Latent Imagination for Policy Learning in Vision-Language-Action Models">SLIP-VLA: Single-Step Latent Imagination for Policy Learning in Vision-Language-Action Models</span></li></ul>
   </div>
   <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">driving-vla <strong>11</strong></span></div>
 </section>

@@ -1,0 +1,281 @@
+{
+  "date": "20260929",
+  "date_label": "",
+  "generated_at": "2026-09-29 22:45:51 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2609.32681v1",
+      "route": "202609/29/2609.32681v1-rcvla-4d-radar-grounded-semantic-reasoning-and-trajectory-arbitration-for-autonomous-driving",
+      "title": "RCVLA: 4D Radar-Grounded Semantic Reasoning and Trajectory Arbitration for Autonomous Driving",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 10.0,
+      "evidence": "面向自动驾驶的雷达-相机VLA框架，含语义推理与轨迹仲裁",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.34387v1",
+      "route": "202609/29/2609.34387v1-car-vla-complexity-aware-and-risk-adaptive-reasoning-for-autonomous-driving",
+      "title": "CAR-VLA: Complexity-Aware and Risk-Adaptive Reasoning for Autonomous Driving",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 10.0,
+      "evidence": "复杂度感知与风险自适应的统一驾驶VLA模型",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.32157v1",
+      "route": "202609/29/2609.32157v1-causaldrivebench-evaluating-causal-reasoning-in-vision-language-action-models-for-autonomous-driving",
+      "title": "CausalDriveBench: Evaluating Causal Reasoning in Vision-Language-Action Models for Autonomous Driving",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "评估自动驾驶视觉-语言-动作模型的因果推理",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.32193v1",
+      "route": "202609/29/2609.32193v1-devol-one-one-autoregressive-mixture-of-transformers-to-unify-vision-language-action-and-latent-world-modeling",
+      "title": "Devol-ONE: One Autoregressive Mixture of Transformers to Unify Vision-Language-Action and Latent World Modeling",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "在单一自回归模型中统一VLA与潜在世界建模",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.35078v1",
+      "route": "202609/29/2609.35078v1-refinedrive-reliable-failure-guided-learning-for-vision-language-action-driving",
+      "title": "RefineDrive: Reliable Failure-Guided Learning for Vision-Language-Action Driving",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向视觉-语言-动作驾驶的失败引导后训练",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.28256v1",
+      "route": "202609/29/2609.28256v1-membodied-recurrent-associative-memory-for-vision-language-action-models",
+      "title": "MemBodied: Recurrent Associative Memory for Vision-Language-Action Models",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "为VLA模型引入循环关联记忆以支持具身控制",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.29204v1",
+      "route": "202609/29/2609.29204v1-adahvla-adaptive-harnesses-for-long-horizon-vision-language-action-execution",
+      "title": "AdaHVLA: Adaptive Harnesses for Long-Horizon Vision-Language-Action Execution",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "面向长时程VLA推理与记忆的自适应框架",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.30833v1",
+      "route": "202609/29/2609.30833v1-fast-plans-faithful-actions-closing-the-planning-execution-gap-in-hierarchical-vision-language-action-models",
+      "title": "Fast Plans, Faithful Actions: Closing the Planning-Execution Gap in Hierarchical Vision-Language-Action Models",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "以路点规划弥合分层VLA的规划-执行鸿沟",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.33575v1",
+      "route": "202609/29/2609.33575v1-slip-vla-single-step-latent-imagination-for-policy-learning-in-vision-language-action-models",
+      "title": "SLIP-VLA: Single-Step Latent Imagination for Policy Learning in Vision-Language-Action Models",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "VLA策略学习中的单步潜在想象",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.34170v1",
+      "route": "202609/29/2609.34170v1-ravel-asynchronous-rolling-inference-for-flow-based-vision-language-action-models",
+      "title": "RAVEL: Asynchronous Rolling Inference for Flow-Based Vision-Language-Action Models",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "流式VLA模型的异步低延迟推理框架",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.25369v1",
+      "route": "202609/29/2609.25369v1-capability-aware-arbitration-for-semantic-intent-based-shared-control",
+      "title": "Capability-Aware Arbitration for Semantic Intent-Based Shared Control",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "结合VLM意图推断与VLA策略的机器人共享控制",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.25558v1",
+      "route": "202609/29/2609.25558v1-habilis-brain-0-geometry-change-supervision-for-vision-language-action-and-residual-flow-recovery",
+      "title": "HABILIS Brain 0: Geometry-Change Supervision for Vision-Language-Action and Residual Flow Recovery",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向视觉-语言-动作策略的几何变化监督",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.27734v1",
+      "route": "202609/29/2609.27734v1-infinova-infinite-novel-view-augmentation-for-viewpoint-invariant-robot-policies",
+      "title": "InfiNoVA: Infinite Novel View Augmentation for Viewpoint Invariant Robot Policies",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向机器人控制的VLA策略与视角不变数据增强",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.29389v1",
+      "route": "202609/29/2609.29389v1-robo-harness-k1-harnessing-robot-use-agents-via-perception-augmentation",
+      "title": "Robo-Harness K1: Harnessing Robot-Use Agents via Perception Augmentation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "以工具化感知增强具身机器人的感知动作",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.28530v1",
+      "route": "202609/29/2609.28530v1-know-your-body-a-harness-for-direct-and-self-improving-robot-control-with-vlms",
+      "title": "Know Your Body: A Harness for Direct and Self-Improving Robot Control with VLMs",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "用视觉语言模型实现直接机器人控制的自我改进框架",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.28955v1",
+      "route": "202609/29/2609.28955v1-actgaze-learning-action-grounded-gaze-through-counterfactual-visual-interventions-for-high-precision-manipulation",
+      "title": "ActGaze: Learning Action-Grounded Gaze through Counterfactual Visual Interventions for High-Precision Manipulation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "引导VLA策略关注动作相关区域的训练方法",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    },
+    {
+      "paper_id": "2609.29382v1",
+      "route": "202609/29/2609.29382v1-decoupled-early-exits-for-task-dependent-compute-allocation-in-flow-matching-vlas",
+      "title": "Decoupled Early Exits for Task-Dependent Compute Allocation in Flow-Matching VLAs",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向流匹配VLA机器人控制的任务依赖算力分配",
+      "first_seen_at": "2026-09-29 22:45:51 UTC",
+      "updated_at": "2026-09-29 22:45:51 UTC"
+    }
+  ]
+}
