@@ -1,0 +1,41 @@
+{
+  "date": "20260930",
+  "date_label": "",
+  "generated_at": "2026-09-30 22:50:06 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2609.34467v1",
+      "route": "202609/30/2609.34467v1-alignment-guided-flow-transformer-for-efficient-vision-language-action-policy-learning",
+      "title": "Alignment-Guided Flow Transformer for Efficient Vision-Language-Action Policy Learning",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "面向VLA策略学习的三模态对齐框架",
+      "first_seen_at": "2026-09-30 22:50:06 UTC",
+      "updated_at": "2026-09-30 22:50:06 UTC"
+    },
+    {
+      "paper_id": "2609.34792v1",
+      "route": "202609/30/2609.34792v1-d2-vla-dual-memory-dual-frequency-vision-language-action-model-for-long-dynamic-manipulation",
+      "title": "D$^2$-VLA: Dual-Memory Dual-Frequency Vision-Language-Action Model For Long Dynamic Manipulation",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "driving-vla"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "面向长时动态操作的双记忆双频VLA模型",
+      "first_seen_at": "2026-09-30 22:50:06 UTC",
+      "updated_at": "2026-09-30 22:50:06 UTC"
+    }
+  ]
+}

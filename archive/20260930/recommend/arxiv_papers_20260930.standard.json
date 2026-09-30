@@ -1,0 +1,105 @@
+{
+  "mode": "standard",
+  "generated_at": "2026-09-30T22:48:46.340129+00:00",
+  "stats": {
+    "mode": "standard",
+    "tag_count": 1,
+    "deep_divecandidates": 2,
+    "deep_cap": 6,
+    "deep_selected": 2,
+    "quick_candidates": 0,
+    "quick_skim_target": 11,
+    "quick_selected": 0
+  },
+  "deep_dive": [
+    {
+      "id": "2609.34467v1",
+      "source": "arxiv",
+      "title": "Alignment-Guided Flow Transformer for Efficient Vision-Language-Action Policy Learning",
+      "abstract": "Recent advances in Vision-Language-Action (VLA) models point toward general-purpose robotic intelligence by unifying perception, instruction, and control. Despite impressive progress, existing VLA models often adapt poorly due to \\emph{tri-modal misalignment} among vision, language, and action, which weakens action grounding and hurts generalization and fine-tuning efficiency. In this work, we present Alignment-Guided Flow Transformer (AGFT), a novel framework that explicitly enforces tri-modal alignment through a dedicated alignment loss, bridging the representational gap across modalities and enhancing task adaptation. While prior research has predominantly emphasized bi-modal vision--language alignment, we systematically formalize and study tri-modal alignment in VLA models, and provide both ablations and analysis to isolate its role in improving adaptation and robustness. To further accelerate deployment, we adopt a flow-matching objective, enabling substantially fewer inference steps than diffusion-based policies while maintaining accuracy. Theoretically, we establish a quantitative connection between the tri-modal alignment gap and the optimization tightness of flow matching; empirically, experiments on the extensive benchmark show that AGFT achieves superior success rates and lower inference latency compared to SOTA baselines, underscoring tri-modal alignment as a key ingredient for scaling robust VLA manipulation.",
+      "authors": [
+        "Shengchao Hu",
+        "Peng Wang",
+        "Qiyang Zhou",
+        "Guodong Zheng",
+        "Yuqi Huang",
+        "Li Shen",
+        "Ya Zhang",
+        "Dacheng Tao"
+      ],
+      "primary_category": "cs.LG",
+      "categories": [
+        "cs.LG"
+      ],
+      "published": "2026-09-28T07:24:48+00:00",
+      "link": "https://arxiv.org/pdf/2609.34467v1",
+      "tags": [
+        "keyword:driving-vla",
+        "query:driving-vla"
+      ],
+      "llm_score": 8.0,
+      "llm_evidence_en": "tri-modal alignment framework for VLA policy learning",
+      "llm_evidence_cn": "面向VLA策略学习的三模态对齐框架",
+      "llm_evidence": "面向VLA策略学习的三模态对齐框架",
+      "canonical_evidence": "面向VLA策略学习的三模态对齐框架",
+      "llm_tldr_en": "AGFT addresses tri-modal misalignment among vision, language, and action in VLA models via a dedicated alignment loss, improving action grounding, generalization and fine-tuning efficiency.",
+      "llm_tldr_cn": "现有VLA模型因视觉、语言、动作三模态错位，导致动作接地弱、泛化与微调效率差。本文提出对齐引导流Transformer（AGFT），通过专门的对齐损失显式强化三模态对齐，弥合模态间表示鸿沟。相较以往偏重视觉-语言双模态对齐，该方法系统化形式化三模态对齐并增强任务适配。工作强调三模态对齐对VLA通用性至关重要，为高效策略学习提供了新框架。",
+      "llm_tldr": "现有VLA模型因视觉、语言、动作三模态错位，导致动作接地弱、泛化与微调效率差。本文提出对齐引导流Transformer（AGFT），通过专门的对齐损失显式强化三模态对齐，弥合模态间表示鸿沟。相较以往偏重视觉-语言双模态对齐，该方法系统化形式化三模态对齐并增强任务适配。工作强调三模态对齐对VLA通用性至关重要，为高效策略学习提供了新框架。",
+      "llm_tags": [
+        "query:driving-vla"
+      ],
+      "matched_query_tag": "query:driving-vla",
+      "matched_query_text": "papers on vision-language-action models for embodied decision making",
+      "matched_requirement_id": "req-2",
+      "selection_source": "carryover_cache",
+      "paper_id": "2609.34467v1"
+    },
+    {
+      "id": "2609.34792v1",
+      "source": "arxiv",
+      "title": "D$^2$-VLA: Dual-Memory Dual-Frequency Vision-Language-Action Model For Long Dynamic Manipulation",
+      "abstract": "Long-horizon manipulation requires robots to remember cues that are no longer in view while responding to moving objects. Yet vision-language-action (VLA) policies often rely on the latest observation, and refreshing their visual context typically requires another costly vision-language model (VLM) pass. We present D$^2$-VLA, which combines dual memory and dual-frequency control at the KV-cache interface of a pretrained VLA. D$^2$-VLA uses block-wise causal KV caching to encode observations incrementally and, guided by distinct temporal attention patterns, constructs separate historical KV read views for the VLM and action expert. Between periodic VLM updates, a gated adapter incorporates fresh visual features into the latest history-conditioned KV block, while a short fast-memory queue supports action replanning. We introduce DOMINO-Long, a ten-task benchmark requiring robots to use earlier visual cues when manipulating moving objects. D$^2$-VLA achieves complete-task success rates of 29.3\\% on DOMINO, compared with 9.6\\% for $π_{0.5}$ and 17.2\\% for PUMA, and 60.0\\% on DOMINO-Long, compared with 35.4\\% and 20.6\\%, respectively. It improves success rates on eight real-robot tasks and reaches 97.5\\% on LIBERO-Long and 74.3\\% on RoboTwin 2.0.",
+      "authors": [
+        "Zijian Ye",
+        "Chengqi Wei",
+        "Wei Huang",
+        "Anlin Zheng",
+        "Chunyu Zou",
+        "Liangyu Wu",
+        "Zikang Zhao",
+        "Zhenjie Peng",
+        "Yushuo Yang",
+        "Shuman Zhao",
+        "Zhongrui Wang",
+        "Xiaojuan Qi"
+      ],
+      "primary_category": "cs.CV",
+      "categories": [
+        "cs.CV"
+      ],
+      "published": "2026-09-28T10:00:58+00:00",
+      "link": "https://arxiv.org/pdf/2609.34792v1",
+      "tags": [
+        "keyword:driving-vla",
+        "query:driving-vla"
+      ],
+      "llm_score": 8.0,
+      "llm_evidence_en": "dual-memory dual-frequency VLA model for long-horizon dynamic manipulation",
+      "llm_evidence_cn": "面向长时动态操作的双记忆双频VLA模型",
+      "llm_evidence": "面向长时动态操作的双记忆双频VLA模型",
+      "canonical_evidence": "面向长时动态操作的双记忆双频VLA模型",
+      "llm_tldr_en": "Long-horizon manipulation needs robots to remember out-of-view cues and react to moving objects, yet VLA policies rely on the latest observation. D2-VLA combines dual memory and dual-frequency control at the KV-cache, encoding observations incrementally with gated feature fusion.",
+      "llm_tldr_cn": "针对长时程操作中机器人需记住已离开视野的线索并响应移动物体、而VLA策略常仅依赖最新观测且刷新视觉上下文代价高昂的问题，本文提出D2-VLA模型。该方法在预训练VLA的KV缓存接口结合双记忆与双频控制，以块状因果KV缓存增量编码观测，并为VLM与动作专家构建独立的历史读取视图，其间由门控适配器融入新视觉特征。结果实现了长时动态操作中的高效记忆与响应。",
+      "llm_tldr": "针对长时程操作中机器人需记住已离开视野的线索并响应移动物体、而VLA策略常仅依赖最新观测且刷新视觉上下文代价高昂的问题，本文提出D2-VLA模型。该方法在预训练VLA的KV缓存接口结合双记忆与双频控制，以块状因果KV缓存增量编码观测，并为VLM与动作专家构建独立的历史读取视图，其间由门控适配器融入新视觉特征。结果实现了长时动态操作中的高效记忆与响应。",
+      "llm_tags": [
+        "query:driving-vla"
+      ],
+      "matched_query_tag": "query:driving-vla",
+      "matched_query_text": "Vision language action architectures for robotic and vehicle control with trajectory planning",
+      "matched_requirement_id": "req-8",
+      "selection_source": "carryover_cache",
+      "paper_id": "2609.34792v1"
+    }
+  ],
+  "quick_skim": []
+}
